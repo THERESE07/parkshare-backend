@@ -1,0 +1,61 @@
+HELP.md
+target/
+out/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+# Local secrets and configuration
+application-local.yml
+application-local.yaml
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+
+# Logs
+*.log
+logs/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+### VS Code ###
+.vscode/
+# Local secrets
+application-local.yml
+.env
+# Local ParkShare configuration and credentials
+/src/main/resources/application.yml
+/src/main/resources/application.properties
+
+# Local HTTP test requests
+/src/test/http/auth.http

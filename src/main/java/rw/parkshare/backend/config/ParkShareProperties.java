@@ -86,6 +86,64 @@ public class ParkShareProperties {
         private String webhookSecret;
         /** Enables /api/payments/sandbox/** helper endpoints (never enable in production). */
         private boolean sandboxEndpointsEnabled = true;
+        /**
+         * Sandbox only: seconds before the simulated customer answers the prompt (0 = wait
+         * for the manual /complete call). Phones ending in 000 decline, 999 never answer.
+         */
+        private int sandboxAutoApproveSeconds = 5;
+        /** Merchant fee charged by MTN MoMo per payment (estimate; set from your contract). */
+        private BigDecimal mtnMomoFeeRate = new BigDecimal("0.015");
+        /** Merchant fee charged by Airtel Money per payment (estimate; set from your contract). */
+        private BigDecimal airtelMoneyFeeRate = new BigDecimal("0.018");
+
+        public BigDecimal feeRate(String method) {
+            if (method == null) {
+                return mtnMomoFeeRate.max(airtelMoneyFeeRate);
+            }
+            return switch (method) {
+                case "MTN_MOMO" -> mtnMomoFeeRate;
+                case "AIRTEL_MONEY" -> airtelMoneyFeeRate;
+                default -> BigDecimal.ZERO; // CASH
+            };
+        }
+    }
+
+    private Messaging messaging = new Messaging();
+
+    @Data
+    public static class Messaging {
+        /** "log" (default, prints messages) or "africastalking". */
+        private String smsProvider = "log";
+        /** "log" (default) or "smtp" (e.g. Brevo: spring.mail.host=smtp-relay.brevo.com). */
+        private String emailProvider = "log";
+        private String emailFrom = "ParkShare <no-reply@parkshare.rw>";
+        /** Send messages in the background so slow providers never delay API responses. */
+        private boolean async = true;
+        /** Events that also go out by SMS (each SMS costs money); everything else is in-app + email. */
+        private java.util.Set<String> smsEvents = new java.util.HashSet<>(java.util.Set.of(
+                "RESERVATION_CONFIRMED", "RESERVATION_CANCELLED"));
+        /** Send a phone-verification code right after registration. */
+        private boolean verifyPhoneOnRegister = true;
+        private AfricasTalking africasTalking = new AfricasTalking();
+        private Otp otp = new Otp();
+    }
+
+    @Data
+    public static class AfricasTalking {
+        /** "sandbox" for the free test environment, or your live app username. */
+        private String username = "sandbox";
+        private String apiKey;
+        /** Alphanumeric sender ID registered with Africa's Talking (optional). */
+        private String senderId;
+    }
+
+    @Data
+    public static class Otp {
+        private int length = 6;
+        private int ttlMinutes = 10;
+        private int maxAttempts = 5;
+        private int resendSeconds = 60;
+        private int maxPerHour = 5;
     }
 
     @Data

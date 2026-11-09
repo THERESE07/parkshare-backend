@@ -57,4 +57,27 @@ public class OperatorVerificationRequestDto {
     public void setNotes(String notes) {
         this.notes = notes;
     }
+
+    /** RRA TIN: exactly 9 digits. */
+    @jakarta.validation.constraints.Pattern(regexp = "\\d{9}", message = "must be a 9-digit RRA TIN")
+    private String tin;
+
+    /** True if the business is registered for VAT with RRA (attach the certificate for review). */
+    private Boolean vatRegistered;
+
+    public String getTin() {
+        return tin;
+    }
+
+    public void setTin(String tin) {
+        this.tin = tin;
+    }
+
+    public Boolean getVatRegistered() {
+        return vatRegistered;
+    }
+
+    public void setVatRegistered(Boolean vatRegistered) {
+        this.vatRegistered = vatRegistered;
+    }
 }

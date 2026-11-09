@@ -137,6 +137,18 @@ public class Payment {
         this.updatedAt = updatedAt;
     }
 
+    /** Mobile-money provider fee for this payment; paid out of the operator's share. */
+    @Column(name = "provider_fee", nullable = false, precision = 12, scale = 2)
+    private BigDecimal providerFee = BigDecimal.ZERO;
+
+    public BigDecimal getProviderFee() {
+        return providerFee;
+    }
+
+    public void setProviderFee(BigDecimal providerFee) {
+        this.providerFee = providerFee;
+    }
+
     @Column(name = "payer_phone", length = 30)
     private String payerPhone;
 

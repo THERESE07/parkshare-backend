@@ -77,6 +77,7 @@ public class SecurityConfig {
                         // ---------- Current user ----------
                         .requestMatchers("/api/me/**", "/api/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/pricing/quote").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/pricing/operator-preview").hasAnyRole(OPERATOR, ADMIN)
 
                         // ---------- Administration ----------
                         .requestMatchers("/api/users/**", "/api/users").hasRole(ADMIN)

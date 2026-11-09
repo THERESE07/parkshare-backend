@@ -50,6 +50,30 @@ public class OperatorVerification {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    /** RRA Taxpayer Identification Number (9 digits). */
+    @Column(name = "tin", length = 9)
+    private String tin;
+
+    /** Operator declares VAT registration; it only counts once an admin verifies the operator. */
+    @Column(name = "vat_registered", nullable = false)
+    private boolean vatRegistered;
+
+    public String getTin() {
+        return tin;
+    }
+
+    public void setTin(String tin) {
+        this.tin = tin;
+    }
+
+    public boolean isVatRegistered() {
+        return vatRegistered;
+    }
+
+    public void setVatRegistered(boolean vatRegistered) {
+        this.vatRegistered = vatRegistered;
+    }
+
     public OperatorVerification() {
     }
 

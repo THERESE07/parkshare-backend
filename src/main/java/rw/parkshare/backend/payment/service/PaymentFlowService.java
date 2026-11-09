@@ -66,6 +66,8 @@ public class PaymentFlowService {
     private final Notifier notifier;
     private final AccessGuard guard;
     private final ParkShareProperties properties;
+    private final rw.parkshare.backend.pricing.PricingService pricingService;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     public PaymentFlowService(
             ReservationRepository reservationRepository,
@@ -79,8 +81,12 @@ public class PaymentFlowService {
             QrTokenService qrTokenService,
             Notifier notifier,
             AccessGuard guard,
-            ParkShareProperties properties
+            ParkShareProperties properties,
+            rw.parkshare.backend.pricing.PricingService pricingService,
+            org.springframework.context.ApplicationEventPublisher events
     ) {
+        this.pricingService = pricingService;
+        this.events = events;
         this.reservationRepository = reservationRepository;
         this.paymentRepository = paymentRepository;
         this.transactionRepository = transactionRepository;
@@ -147,6 +153,8 @@ public class PaymentFlowService {
         String providerId = gateway.requestPayment(txReference, phone, payment.getAmount(), method, description);
         tx.setProviderTransactionId(providerId);
         transactionRepository.save(tx);
+        events.publishEvent(new rw.parkshare.backend.payment.event.PaymentInitiatedEvent(
+                txReference, phone, payment.getAmount(), method));
 
         String wallet = "MTN_MOMO".equals(method) ? "MTN MoMo" : "Airtel Money";
         return view(payment, "A " + wallet + " prompt for " + payment.getAmount().toBigInteger()
@@ -162,6 +170,7 @@ public class PaymentFlowService {
         Payment payment = paymentFor(reservation);
         String txReference = newReference("CASH");
         payment.setPaymentMethod("CASH");
+        payment.setProviderFee(BigDecimal.ZERO);
         payment.setStatus(PaymentStatus.PAID);
         payment.setPaidAt(OffsetDateTime.now());
         payment.setTransactionReference(txReference);
@@ -208,7 +217,7 @@ public class PaymentFlowService {
                     && transactionReference.equals(payment.getTransactionReference())) {
                 payment.setStatus(PaymentStatus.FAILED);
                 paymentRepository.save(payment);
-                notifier.inAppAndSms(reservation.getUser(), "PAYMENT_FAILED", "Payment failed",
+                notifier.notify(reservation.getUser(), "PAYMENT_FAILED", "Payment failed",
                         "Payment for reservation " + reservation.getReservationCode() + " failed"
                                 + (reason == null ? "." : ": " + reason + ".") + " You can try again.",
                         "PAYMENT", payment.getId());
@@ -232,6 +241,7 @@ public class PaymentFlowService {
         payment.setStatus(PaymentStatus.PAID);
         payment.setPaidAt(now);
         payment.setTransactionReference(transactionReference);
+        payment.setProviderFee(pricingService.mobileMoneyFee(payment.getAmount(), payment.getPaymentMethod()));
         paymentRepository.save(payment);
 
         if (reservation.getStatus() == ReservationStatus.PENDING) {
@@ -242,7 +252,7 @@ public class PaymentFlowService {
                     tx.getProviderTransactionId());
             payment.setStatus(PaymentStatus.REFUNDED);
             paymentRepository.save(payment);
-            notifier.inAppAndSms(reservation.getUser(), "PAYMENT_SUCCESS", "Payment refunded",
+            notifier.notify(reservation.getUser(), "PAYMENT_SUCCESS", "Payment refunded",
                     "Your payment for " + reservation.getReservationCode()
                             + " arrived after the reservation ended, so it has been refunded.",
                     "PAYMENT", payment.getId());
@@ -337,8 +347,9 @@ public class PaymentFlowService {
                 .filter(refund -> "SUCCESS".equals(refund.getStatus()) || "PENDING".equals(refund.getStatus()))
                 .map(Refund::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal vatRate = properties.getTax().getVatRate();
-        BigDecimal vat = Rwf.vatFromInclusive(payment.getAmount(), vatRate);
+        BigDecimal vat = reservation.getVatAmount() == null ? BigDecimal.ZERO : reservation.getVatAmount();
+        boolean vatCharged = vat.signum() > 0;
+        BigDecimal vatRate = vatCharged ? properties.getTax().getVatRate() : BigDecimal.ZERO;
         ZoneId zone = properties.zoneId();
 
         return new Receipt(
@@ -348,7 +359,7 @@ public class PaymentFlowService {
                 lot.getName(),
                 lot.getAddress() + ", " + lot.getDistrict() + ", " + lot.getCity(),
                 business.map(OperatorVerification::getBusinessName).orElse(null),
-                business.map(OperatorVerification::getBusinessRegistrationNumber).orElse(null),
+                business.map(v -> v.getTin() != null ? "TIN " + v.getTin() : v.getBusinessRegistrationNumber()).orElse(null),
                 reservation.getUser().getFirstName() + " " + reservation.getUser().getLastName(),
                 reservation.getVehicle().getPlateNumber(),
                 reservation.getReservationCode(),
@@ -362,8 +373,11 @@ public class PaymentFlowService {
                 Rwf.CURRENCY,
                 payment.getPaymentMethod(),
                 mask(payment.getPayerPhone()),
-                "Prices include VAT at " + vatRate.multiply(BigDecimal.valueOf(100)).setScale(0, RoundingMode.HALF_UP)
-                        + "%. This is a ParkShare payment receipt; the operator's RRA EBM invoice is issued separately."
+                (vatCharged
+                        ? "Price includes VAT at " + vatRate.multiply(BigDecimal.valueOf(100)).setScale(0, RoundingMode.HALF_UP)
+                          + "%, collected for the operator. The operator's RRA EBM invoice is issued separately."
+                        : "No VAT charged: the operator is not VAT-registered.")
+                        + " No extra fees were added to this price."
         );
     }
 
@@ -374,10 +388,14 @@ public class PaymentFlowService {
     private void confirm(Reservation reservation, User by, String reason) {
         lifecycle.transition(reservation, ReservationStatus.CONFIRMED, by, reason);
         qrTokenService.issue(reservation);
-        notifier.inAppAndSms(reservation.getUser(), "RESERVATION_CONFIRMED", "Reservation confirmed",
+        notifier.notify(reservation.getUser(), "RESERVATION_CONFIRMED", "Reservation confirmed",
                 "Reservation " + reservation.getReservationCode() + " at " + reservation.getParkingLot().getName()
                         + " is confirmed for " + reservation.getStartTime().atZoneSameInstant(properties.zoneId())
                         .format(DateTimeFormatter.ofPattern("dd MMM HH:mm"))
+                        + ". Paid: " + reservation.getTotalAmount().toBigInteger() + " RWF"
+                        + (reservation.getVatAmount() != null && reservation.getVatAmount().signum() > 0
+                           ? " (VAT incl.)" : "")
+                        + ". Code: " + reservation.getReservationCode()
                         + ". Show your QR code at the entrance.",
                 "RESERVATION", reservation.getId());
     }
@@ -441,7 +459,7 @@ public class PaymentFlowService {
                 payment.getPaymentReference(),
                 payment.getTransactionReference(),
                 payment.getAmount(),
-                Rwf.vatFromInclusive(payment.getAmount(), properties.getTax().getVatRate()),
+                payment.getReservation().getVatAmount(),
                 payment.getCurrency(),
                 payment.getPaymentMethod(),
                 payment.getStatus().name(),

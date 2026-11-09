@@ -41,6 +41,7 @@ class PricingServiceTest {
     private final List<PricingRule> rules = new ArrayList<>();
     private final List<SpecialRate> specials = new ArrayList<>();
     private PricingService pricing;
+    private VatPolicy vatPolicy;
 
     @BeforeEach
     void setUp() {
@@ -50,7 +51,9 @@ class PricingServiceTest {
         when(lots.existsById(anyLong())).thenReturn(true);
         when(ruleRepository.findByParkingLot_IdAndActiveTrue(LOT)).thenReturn(rules);
         when(specialRepository.findByParkingLot_IdAndActiveTrue(LOT)).thenReturn(specials);
-        pricing = new PricingService(lots, ruleRepository, specialRepository, new ParkShareProperties());
+        vatPolicy = mock(VatPolicy.class);
+        when(vatPolicy.appliesTo(LOT)).thenReturn(true);
+        pricing = new PricingService(lots, ruleRepository, specialRepository, vatPolicy, new ParkShareProperties());
     }
 
     @Test
@@ -61,10 +64,70 @@ class PricingServiceTest {
         // 600 x 18/118 = 91.53 -> 92 RWF VAT inside the price
         assertThat(quote.vatAmount()).isEqualByComparingTo("92");
         assertThat(quote.amountExcludingVat()).isEqualByComparingTo("508");
-        assertThat(quote.vatInclusive()).isTrue();
-        assertThat(quote.platformCommission()).isEqualByComparingTo("60");
-        assertThat(quote.operatorPayout()).isEqualByComparingTo("540");
+        assertThat(quote.vatApplied()).isTrue();
+        // Commission is 10% of the price before VAT: 508 x 10% = 51
+        assertThat(quote.platformCommission()).isEqualByComparingTo("51");
+        // Mobile-money fee estimated at the higher rate (Airtel 1.8%): 600 x 1.8% = 11
+        assertThat(quote.mobileMoneyFee()).isEqualByComparingTo("11");
+        // Operator is paid 600 - 51 - 11 = 538, of which 92 is VAT owed to RRA
+        assertThat(quote.operatorReceives()).isEqualByComparingTo("538");
+        assertThat(quote.operatorVatToRemit()).isEqualByComparingTo("92");
+        assertThat(quote.operatorNet()).isEqualByComparingTo("446");
         assertThat(quote.currency()).isEqualTo("RWF");
+    }
+
+    @Test
+    void operatorsNotVerifiedForVatChargeNoVat() {
+        when(vatPolicy.appliesTo(LOT)).thenReturn(false);
+
+        PriceQuote quote = pricing.quote(LOT, WEDNESDAY_10AM, WEDNESDAY_10AM.plusHours(2));
+
+        assertThat(quote.total()).as("driver price unchanged").isEqualByComparingTo("600");
+        assertThat(quote.vatApplied()).isFalse();
+        assertThat(quote.vatAmount()).isEqualByComparingTo("0");
+        assertThat(quote.platformCommission()).isEqualByComparingTo("60");
+        assertThat(quote.operatorReceives()).isEqualByComparingTo("529");
+        assertThat(quote.operatorNet()).isEqualByComparingTo("529");
+        assertThat(quote.toDriverQuote().note()).contains("No VAT");
+    }
+
+    @Test
+    void feeDependsOnPaymentMethod() {
+        PriceQuote mtn = pricing.calculate(LOT, WEDNESDAY_10AM, WEDNESDAY_10AM.plusHours(2), true, null, "MTN_MOMO");
+        PriceQuote cash = pricing.calculate(LOT, WEDNESDAY_10AM, WEDNESDAY_10AM.plusHours(2), true, null, "CASH");
+
+        assertThat(mtn.mobileMoneyFee()).isEqualByComparingTo("9"); // 600 x 1.5%
+        assertThat(cash.mobileMoneyFee()).isEqualByComparingTo("0");
+        assertThat(pricing.mobileMoneyFee(new BigDecimal("800"), "MTN_MOMO")).isEqualByComparingTo("12");
+    }
+
+    @Test
+    void driverQuoteHidesBusinessDetails() {
+        PriceQuote.DriverQuote driver = pricing.quote(LOT, WEDNESDAY_10AM, WEDNESDAY_10AM.plusHours(2)).toDriverQuote();
+
+        assertThat(driver.total()).isEqualByComparingTo("600");
+        assertThat(driver.vatAmount()).isEqualByComparingTo("92");
+        assertThat(PriceQuote.DriverQuote.class.getRecordComponents())
+                .extracting(java.lang.reflect.RecordComponent::getName)
+                .doesNotContain("platformCommission", "mobileMoneyFee", "operatorReceives", "operatorNet");
+    }
+
+    @Test
+    void operatorPreviewShowsEarningsForProposedRates() {
+        OperatorPreview preview = pricing.operatorPreview(LOT, new BigDecimal("400"), null, "MTN_MOMO");
+
+        assertThat(preview.basedOn()).contains("Proposed");
+        OperatorPreview.Example twoHours = preview.examples().get(1);
+        assertThat(twoHours.driverPays()).isEqualByComparingTo("800");
+        assertThat(twoHours.vatInPrice()).isEqualByComparingTo("122");
+        assertThat(twoHours.platformCommission()).isEqualByComparingTo("68"); // 678 x 10%
+        assertThat(twoHours.mobileMoneyFee()).isEqualByComparingTo("12");     // 800 x 1.5%
+        assertThat(twoHours.youReceive()).isEqualByComparingTo("720");
+        assertThat(twoHours.yourNetIncome()).isEqualByComparingTo("598");
+        assertThat(preview.examples().get(4).driverPays()).as("full day capped").isEqualByComparingTo("3000");
+
+        assertThatThrownBy(() -> pricing.operatorPreview(LOT, new BigDecimal("5000"), null, null))
+                .isInstanceOf(ApiException.class);
     }
 
     @Test

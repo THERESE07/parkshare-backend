@@ -1,5 +1,7 @@
 package rw.parkshare.backend.payment.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +26,7 @@ public class RefundController {
     @PostMapping("/payment/{paymentId}")
     public ResponseEntity<RefundResponseDto> createRefund(
             @PathVariable Long paymentId,
-            @RequestBody RefundRequestDto request
+            @Valid @RequestBody RefundRequestDto request
     ) {
         RefundResponseDto createdRefund =
                 refundService.createRefund(
@@ -163,7 +165,7 @@ public class RefundController {
     @PutMapping("/{id}")
     public ResponseEntity<RefundResponseDto> updateRefund(
             @PathVariable Long id,
-            @RequestBody RefundRequestDto request
+            @Valid @RequestBody RefundRequestDto request
     ) {
         return ResponseEntity.ok(
                 refundService.updateRefund(

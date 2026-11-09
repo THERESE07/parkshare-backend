@@ -137,6 +137,17 @@ public class Payment {
         this.updatedAt = updatedAt;
     }
 
+    @Column(name = "payer_phone", length = 30)
+    private String payerPhone;
+
+    public String getPayerPhone() {
+        return payerPhone;
+    }
+
+    public void setPayerPhone(String payerPhone) {
+        this.payerPhone = payerPhone;
+    }
+
     @PrePersist
     protected void onCreate() {
         OffsetDateTime now = OffsetDateTime.now();

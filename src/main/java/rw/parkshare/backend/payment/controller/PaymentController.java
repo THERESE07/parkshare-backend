@@ -1,5 +1,7 @@
 package rw.parkshare.backend.payment.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +27,7 @@ public class PaymentController {
     @PostMapping("/reservation/{reservationId}")
     public ResponseEntity<PaymentResponseDto> createPayment(
             @PathVariable Long reservationId,
-            @RequestBody PaymentRequestDto request
+            @Valid @RequestBody PaymentRequestDto request
     ) {
         PaymentResponseDto createdPayment =
                 paymentService.createPayment(
@@ -188,7 +190,7 @@ public class PaymentController {
     @PutMapping("/{id}")
     public ResponseEntity<PaymentResponseDto> updatePayment(
             @PathVariable Long id,
-            @RequestBody PaymentRequestDto request
+            @Valid @RequestBody PaymentRequestDto request
     ) {
         return ResponseEntity.ok(
                 paymentService.updatePayment(

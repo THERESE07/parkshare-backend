@@ -1,5 +1,7 @@
 package rw.parkshare.backend.payment.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import rw.parkshare.backend.common.dto.PaymentWebhookRequestDto;
@@ -20,7 +22,7 @@ public class PaymentWebhookController {
 
     @PostMapping
     public ResponseEntity<PaymentWebhookResponseDto> createWebhook(
-            @RequestBody PaymentWebhookRequestDto request
+            @Valid @RequestBody PaymentWebhookRequestDto request
     ) {
         return ResponseEntity.ok(
                 paymentWebhookService.createWebhook(request)
@@ -120,7 +122,7 @@ public class PaymentWebhookController {
     @PutMapping("/{id}")
     public ResponseEntity<PaymentWebhookResponseDto> updateWebhook(
             @PathVariable Long id,
-            @RequestBody PaymentWebhookRequestDto request
+            @Valid @RequestBody PaymentWebhookRequestDto request
     ) {
         return ResponseEntity.ok(
                 paymentWebhookService.updateWebhook(id, request)

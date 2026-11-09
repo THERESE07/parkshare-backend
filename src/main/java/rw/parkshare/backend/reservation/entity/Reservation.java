@@ -160,6 +160,30 @@ public class Reservation {
         this.notes = notes;
     }
 
+    /** VAT (18%) contained in totalAmount; prices are VAT-inclusive. */
+    @Column(name = "vat_amount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal vatAmount = BigDecimal.ZERO;
+
+    /** ParkShare commission taken from the operator's share of totalAmount. */
+    @Column(name = "platform_fee", nullable = false, precision = 12, scale = 2)
+    private BigDecimal platformFee = BigDecimal.ZERO;
+
+    public BigDecimal getVatAmount() {
+        return vatAmount;
+    }
+
+    public void setVatAmount(BigDecimal vatAmount) {
+        this.vatAmount = vatAmount;
+    }
+
+    public BigDecimal getPlatformFee() {
+        return platformFee;
+    }
+
+    public void setPlatformFee(BigDecimal platformFee) {
+        this.platformFee = platformFee;
+    }
+
     public OffsetDateTime getCreatedAt() {
         return createdAt;
     }

@@ -1,5 +1,7 @@
 package rw.parkshare.backend.notification.service;
 
+import rw.parkshare.backend.common.dto.PageResponse;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rw.parkshare.backend.common.dto.NotificationRequestDto;
@@ -77,7 +79,7 @@ public class NotificationService {
         notification.setStatus(
                 request.getStatus() == null
                         || request.getStatus().isBlank()
-                        ? "PENDING"
+                        ? "UNREAD"
                         : request.getStatus()
         );
 
@@ -106,13 +108,13 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
-    public List<NotificationResponseDto> getNotificationsByUserId(
-            Long userId
+    public PageResponse<NotificationResponseDto> getNotificationsByUserId(
+            Long userId, int page, int size
     ) {
-        return notificationRepository.findByUser_Id(userId)
-                .stream()
-                .map(this::toResponseDto)
-                .toList();
+        return PageResponse.of(
+                notificationRepository.findByUser_Id(userId, PageResponse.request(page, size, "createdAt")),
+                this::toResponseDto
+        );
     }
 
     @Transactional(readOnly = true)

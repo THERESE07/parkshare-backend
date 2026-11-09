@@ -1,5 +1,7 @@
 package rw.parkshare.backend.reservation.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +27,7 @@ public class ReservationStatusHistoryController {
     public ResponseEntity<ReservationStatusHistoryResponseDto> createHistory(
             @RequestParam Long reservationId,
             @RequestParam(required = false) Long changedByUserId,
-            @RequestBody ReservationStatusHistoryRequestDto request
+            @Valid @RequestBody ReservationStatusHistoryRequestDto request
     ) {
         ReservationStatusHistoryResponseDto history =
                 historyService.createHistory(
@@ -118,7 +120,7 @@ public class ReservationStatusHistoryController {
     recordStatusChange(
             @RequestParam Long reservationId,
             @RequestParam(required = false) Long changedByUserId,
-            @RequestBody ReservationStatusHistoryRequestDto request
+            @Valid @RequestBody ReservationStatusHistoryRequestDto request
     ) {
         ReservationStatusHistoryResponseDto history =
                 historyService.recordStatusChange(
@@ -136,7 +138,7 @@ public class ReservationStatusHistoryController {
     public ResponseEntity<ReservationStatusHistoryResponseDto>
     recordSystemStatusChange(
             @RequestParam Long reservationId,
-            @RequestBody ReservationStatusHistoryRequestDto request
+            @Valid @RequestBody ReservationStatusHistoryRequestDto request
     ) {
         ReservationStatusHistoryResponseDto history =
                 historyService.recordStatusChange(
@@ -153,7 +155,7 @@ public class ReservationStatusHistoryController {
     public ResponseEntity<ReservationStatusHistoryResponseDto>
     updateHistory(
             @PathVariable Long id,
-            @RequestBody ReservationStatusHistoryRequestDto request
+            @Valid @RequestBody ReservationStatusHistoryRequestDto request
     ) {
         return ResponseEntity.ok(
                 historyService.updateHistory(

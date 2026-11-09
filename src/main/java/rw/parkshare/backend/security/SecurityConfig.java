@@ -1,5 +1,12 @@
 package rw.parkshare.backend.security;
 
+
+
+import org.springframework.security.config.Customizer;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
 import org.springframework.http.HttpMethod;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -34,6 +41,9 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         http
+                .cors(Customizer.withDefaults())
+                // Keep your existing CSRF and authorization configuration here
+
                 .csrf(AbstractHttpConfigurer::disable)
 
                 .authorizeHttpRequests(auth -> auth
@@ -46,19 +56,24 @@ public class SecurityConfig {
                         .requestMatchers("/api/vehicles/**")
                         .hasRole("DRIVER")
 
-                        // Public parking-lot discovery
-                        .requestMatchers(
-                                "/api/parking-lots",
-                                "/api/parking-lots/city",
-                                "/api/parking-lots/search",
-                                "/api/parking-lots/status/**"
-                        ).hasAnyRole("DRIVER", "OPERATOR", "ADMIN")
 
-                        // Parking-lot management
-                        .requestMatchers(
-                                "/api/parking-lots/operator/**",
-                                "/api/parking-lots/*"
-                        ).hasAnyRole("OPERATOR", "ADMIN")
+
+                                // Public parking-lot discovery
+                                .requestMatchers(
+                                        HttpMethod.GET,
+                                        "/api/parking-lots",
+                                        "/api/parking-lots/city",
+                                        "/api/parking-lots/search",
+                                        "/api/parking-lots/status/**",
+                                        "/api/parking-lots/*"
+                                ).permitAll()
+
+                                // Parking-lot management
+                                .requestMatchers(
+                                        "/api/parking-lots/operator/**",
+                                        "/api/parking-lots/*"
+                                ).hasAnyRole("OPERATOR", "ADMIN")
+
 
                         // Parking-lot staff management
                         .requestMatchers(
@@ -295,6 +310,33 @@ public class SecurityConfig {
                 .withSecretKey(secretKey)
                 .algorithm(MacAlgorithm.HS256)
                 .build();
+    }
+
+    @Bean
+    CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "http://127.0.0.1:5173"
+        ));
+
+        configuration.setAllowedMethods(List.of(
+                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
+        ));
+
+        configuration.setAllowedHeaders(List.of(
+                "Authorization", "Content-Type", "Accept"
+        ));
+
+        configuration.setAllowCredentials(false);
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
     }
 
     @Bean

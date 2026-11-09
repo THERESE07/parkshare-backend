@@ -37,19 +37,32 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public RegisterResponseDto register(RegisterRequestDto request) {
 
         validateRegistrationRequest(request);
 
         if (userRepository.existsByEmail(request.getEmail().trim().toLowerCase())) {
-            throw new IllegalArgumentException("Email is already registered");
+            throw rw.parkshare.backend.common.exception.ApiException.conflict("Email is already registered");
+        }
+
+        String phone = rw.parkshare.backend.common.RwandaPhone.requireValid(request.getPhone());
+        if (userRepository.existsByPhone(phone)) {
+            throw rw.parkshare.backend.common.exception.ApiException.conflict("Phone number is already registered");
+        }
+
+        String roleName = request.getAccountType() == null || request.getAccountType().isBlank()
+                ? "DRIVER"
+                : request.getAccountType().trim().toUpperCase();
+        if (!roleName.equals("DRIVER") && !roleName.equals("OPERATOR")) {
+            throw new IllegalArgumentException("accountType must be DRIVER or OPERATOR");
         }
 
         User user = new User();
         user.setFirstName(request.getFirstName().trim());
         user.setLastName(request.getLastName().trim());
         user.setEmail(request.getEmail().trim().toLowerCase());
-        user.setPhone(request.getPhone().trim());
+        user.setPhone(phone);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setStatus("ACTIVE");
         user.setCreatedAt(OffsetDateTime.now());
@@ -57,10 +70,10 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        Role customerRole = roleRepository.findByName("DRIVER")
+        Role customerRole = roleRepository.findByName(roleName)
                 .orElseGet(() -> {
                     Role role = new Role();
-                    role.setName("DRIVER");
+                    role.setName(roleName);
                     return roleRepository.save(role);
                 });
 
@@ -165,6 +178,16 @@ public class AuthService {
             throw new IllegalArgumentException(
                     "Password must contain at least 8 characters"
             );
+        }
+
+        if (!request.getPassword().matches(".*[A-Za-z].*") || !request.getPassword().matches(".*\\d.*")) {
+            throw new IllegalArgumentException(
+                    "Password must contain at least one letter and one number"
+            );
+        }
+
+        if (!request.getEmail().trim().matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            throw new IllegalArgumentException("Email address is not valid");
         }
     }
 }

@@ -12,6 +12,8 @@ import java.util.List;
 @Service
 public class JwtService {
 
+    public static final String ISSUER = "parkshare";
+
     private final JwtEncoder jwtEncoder;
 
     public JwtService(JwtEncoder jwtEncoder) {
@@ -27,7 +29,7 @@ public class JwtService {
         Instant expiresAt = issuedAt.plus(24, ChronoUnit.HOURS);
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
-                .issuer("parkshare")
+                .issuer(ISSUER)
                 .subject(email)
                 .issuedAt(issuedAt)
                 .expiresAt(expiresAt)

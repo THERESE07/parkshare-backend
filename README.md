@@ -100,6 +100,10 @@ All amounts are in Rwandan francs (RWF), whole francs only. Times are interprete
 
 Integration tests start a temporary PostgreSQL with Docker (Testcontainers), so Docker must be running.
 
+## Frontend Integration
+
+Web and mobile developers: start with [docs/FRONTEND_INTEGRATION.md](docs/FRONTEND_INTEGRATION.md).
+
 ## API Conventions
 
 - Errors return `{"timestamp","status","error","message"}` with 400 (validation), 401, 403, 404 or 409.

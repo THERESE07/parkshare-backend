@@ -58,10 +58,13 @@ public class MeController {
         }
         if (body.get("phone") != null) {
             String phone = RwandaPhone.requireValid(body.get("phone"));
-            if (!phone.equals(user.getPhone()) && userRepository.existsByPhone(phone)) {
-                throw ApiException.conflict("Phone number is already registered");
+            if (!phone.equals(user.getPhone())) {
+                if (userRepository.existsByPhone(phone)) {
+                    throw ApiException.conflict("Phone number is already registered");
+                }
+                user.setPhone(phone);
+                user.setPhoneVerifiedAt(null); // new number must be verified again
             }
-            user.setPhone(phone);
         }
         user.setUpdatedAt(OffsetDateTime.now());
         return ResponseEntity.ok(Profile.of(userRepository.save(user), me.roles()));
@@ -91,10 +94,11 @@ public class MeController {
     }
 
     public record Profile(Long id, String firstName, String lastName, String email, String phone,
-                          String status, Set<String> roles) {
+                          String status, Set<String> roles, boolean phoneVerified, boolean emailVerified) {
         static Profile of(User user, Set<String> roles) {
             return new Profile(user.getId(), user.getFirstName(), user.getLastName(), user.getEmail(),
-                    user.getPhone(), user.getStatus(), roles);
+                    user.getPhone(), user.getStatus(), roles,
+                    user.getPhoneVerifiedAt() != null, user.getEmailVerifiedAt() != null);
         }
     }
 }

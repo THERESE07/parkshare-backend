@@ -22,14 +22,17 @@ public class AuthService {
     private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final rw.parkshare.backend.auth.otp.AccountVerificationService verificationService;
 
     public AuthService(
             UserRepository userRepository,
             RoleRepository roleRepository,
             UserRoleRepository userRoleRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService
+            JwtService jwtService,
+            rw.parkshare.backend.auth.otp.AccountVerificationService verificationService
     ) {
+        this.verificationService = verificationService;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.userRoleRepository = userRoleRepository;
@@ -83,6 +86,8 @@ public class AuthService {
         );
 
         userRoleRepository.save(userRole);
+
+        verificationService.sendWelcomeCodes(savedUser);
 
         return new RegisterResponseDto(
                 savedUser.getId(),

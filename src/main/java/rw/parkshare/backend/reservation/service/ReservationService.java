@@ -163,7 +163,7 @@ public class ReservationService {
         User actor = caller.id().equals(userId) ? user : userRepository.findById(caller.id()).orElse(null);
         lifecycle.recordCreated(saved, actor);
 
-        notifier.inApp(user, "RESERVATION_CREATED", "Reservation created",
+        notifier.notify(user, "RESERVATION_CREATED", "Reservation created",
                 "Reservation " + saved.getReservationCode() + " at " + parkingLot.getName() + " costs "
                         + quote.total().toBigInteger() + " RWF (VAT incl.). Pay within "
                         + properties.getReservation().getPaymentHoldMinutes() + " minutes to keep your space.",
@@ -547,7 +547,7 @@ public class ReservationService {
         lifecycle.transition(reservation, ReservationStatus.CANCELLED, currentUserEntity(),
                 byDriver ? "Cancelled by driver" : "Cancelled by parking lot");
 
-        notifier.inAppAndSms(reservation.getUser(), "RESERVATION_CANCELLED", "Reservation cancelled",
+        notifier.notify(reservation.getUser(), "RESERVATION_CANCELLED", "Reservation cancelled",
                 "Reservation " + reservation.getReservationCode() + " was cancelled."
                         + (refund.signum() > 0 ? " Refund: " + refund.toBigInteger() + " RWF." : ""),
                 "RESERVATION", reservation.getId());

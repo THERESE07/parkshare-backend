@@ -79,7 +79,7 @@ public class ReservationScheduler {
         for (Reservation reservation : reservationRepository.findByStatusAndCreatedAtBefore(ReservationStatus.PENDING, cutoff)) {
             paymentFlowService.cancelOpenPayment(reservation);
             lifecycle.transition(reservation, ReservationStatus.EXPIRED, null, "Not paid within the payment window");
-            notifier.inApp(reservation.getUser(), "RESERVATION_CANCELLED", "Reservation expired",
+            notifier.inAppAndEmail(reservation.getUser(), "RESERVATION_CANCELLED", "Reservation expired",
                     "Reservation " + reservation.getReservationCode() + " expired because it was not paid in time.",
                     "RESERVATION", reservation.getId());
             count++;
@@ -117,7 +117,7 @@ public class ReservationScheduler {
             if (alreadyReminded) {
                 continue;
             }
-            notifier.inAppAndSms(reservation.getUser(), "RESERVATION_REMINDER", "Parking starts soon",
+            notifier.notify(reservation.getUser(), "RESERVATION_REMINDER", "Parking starts soon",
                     "Your parking at " + reservation.getParkingLot().getName() + " starts at "
                             + reservation.getStartTime().atZoneSameInstant(properties.zoneId())
                             .format(DateTimeFormatter.ofPattern("HH:mm"))

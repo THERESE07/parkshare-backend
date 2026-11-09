@@ -109,6 +109,11 @@
             <artifactId>spring-boot-starter-webmvc-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Email (SMTP, e.g. Brevo free tier) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
         <!-- Interactive API docs at /swagger-ui.html -->
         <dependency>
             <groupId>org.springdoc</groupId>

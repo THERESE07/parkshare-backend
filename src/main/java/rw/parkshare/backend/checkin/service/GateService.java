@@ -179,7 +179,7 @@ public class GateService {
                 ? "You stayed " + overstayMinutes + " min past your booking. Overstay due: "
                 + overstayAmount.toBigInteger() + " RWF (VAT incl.)."
                 : "Thank you for parking with ParkShare.";
-        notifier.inAppAndSms(reservation.getUser(), "CHECK_OUT_SUCCESS", "Checked out", message,
+        notifier.notify(reservation.getUser(), "CHECK_OUT_SUCCESS", "Checked out", message,
                 "RESERVATION", reservation.getId());
 
         return new GateResult(reservation.getId(), reservation.getReservationCode(),

@@ -1,32 +1,50 @@
 package rw.parkshare.backend.notification.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import rw.parkshare.backend.config.ParkShareProperties;
 import rw.parkshare.backend.notification.entity.Notification;
 import rw.parkshare.backend.notification.repository.NotificationRepository;
-import rw.parkshare.backend.notification.sms.SmsSender;
 import rw.parkshare.backend.user.entity.User;
 
 import java.time.OffsetDateTime;
 
 /**
- * Used by business services to tell users what happened.
- * Always stores an in-app notification; optionally also sends an SMS.
+ * Tells users what happened, choosing channels by cost:
+ * - in-app: always (free);
+ * - email: whenever the user has an email address (free on Brevo's tier);
+ * - SMS: only for events listed in parkshare.messaging.sms-events
+ *   (default: booking confirmed, booking cancelled), because each SMS costs money.
  */
 @Component
 public class Notifier {
 
-    private static final Logger log = LoggerFactory.getLogger(Notifier.class);
-
     private final NotificationRepository notificationRepository;
-    private final SmsSender smsSender;
+    private final MessageDispatcher dispatcher;
+    private final ParkShareProperties properties;
 
-    public Notifier(NotificationRepository notificationRepository, SmsSender smsSender) {
+    public Notifier(NotificationRepository notificationRepository, MessageDispatcher dispatcher,
+                    ParkShareProperties properties) {
         this.notificationRepository = notificationRepository;
-        this.smsSender = smsSender;
+        this.dispatcher = dispatcher;
+        this.properties = properties;
     }
 
+    /** In-app + email, plus SMS for important events. */
+    public void notify(User user, String type, String title, String message, String referenceType, Long referenceId) {
+        inApp(user, type, title, message, referenceType, referenceId);
+        dispatcher.email(user.getEmail(), "ParkShare: " + title, emailBody(user, message));
+        if (properties.getMessaging().getSmsEvents().contains(type)) {
+            dispatcher.sms(user.getPhone(), "ParkShare: " + message);
+        }
+    }
+
+    /** In-app + email, never SMS (for low-importance events). */
+    public void inAppAndEmail(User user, String type, String title, String message, String referenceType, Long referenceId) {
+        inApp(user, type, title, message, referenceType, referenceId);
+        dispatcher.email(user.getEmail(), "ParkShare: " + title, emailBody(user, message));
+    }
+
+    /** In-app only (free). */
     public void inApp(User user, String type, String title, String message, String referenceType, Long referenceId) {
         Notification notification = new Notification();
         notification.setUser(user);
@@ -41,14 +59,10 @@ public class Notifier {
         notificationRepository.save(notification);
     }
 
-    public void inAppAndSms(User user, String type, String title, String message, String referenceType, Long referenceId) {
-        inApp(user, type, title, message, referenceType, referenceId);
-        try {
-            if (user.getPhone() != null) {
-                smsSender.send(user.getPhone(), "ParkShare: " + message);
-            }
-        } catch (RuntimeException exception) {
-            log.warn("SMS delivery failed for user {}: {}", user.getId(), exception.getMessage());
-        }
+    private static String emailBody(User user, String message) {
+        return "Muraho " + user.getFirstName() + ",\n\n"
+                + message + "\n\n"
+                + "Thank you for using ParkShare.\n"
+                + "This is an automated message; please do not reply.";
     }
 }

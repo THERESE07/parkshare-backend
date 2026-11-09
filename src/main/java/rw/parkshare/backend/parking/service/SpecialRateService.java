@@ -20,13 +20,16 @@ public class SpecialRateService {
 
     private final SpecialRateRepository specialRateRepository;
     private final ParkingLotRepository parkingLotRepository;
+    private final rw.parkshare.backend.pricing.PricingService pricingService;
 
     public SpecialRateService(
             SpecialRateRepository specialRateRepository,
-            ParkingLotRepository parkingLotRepository
+            ParkingLotRepository parkingLotRepository,
+            rw.parkshare.backend.pricing.PricingService pricingService
     ) {
         this.specialRateRepository = specialRateRepository;
         this.parkingLotRepository = parkingLotRepository;
+        this.pricingService = pricingService;
     }
 
     public SpecialRateResponseDto createSpecialRate(
@@ -229,6 +232,9 @@ public class SpecialRateService {
                     "Special rate amount cannot be negative."
             );
         }
+
+        // Special rates are hourly rates, so the hourly affordability ceiling applies.
+        pricingService.validateOperatorRate("HOURLY", amount);
 
         if (request.getCurrency() == null || request.getCurrency().isBlank()) {
             throw new IllegalArgumentException(

@@ -1,5 +1,7 @@
 package rw.parkshare.backend.parking.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +24,7 @@ public class SpecialRateController {
     @PostMapping("/parking-lot/{parkingLotId}")
     public ResponseEntity<SpecialRateResponseDto> createSpecialRate(
             @PathVariable Long parkingLotId,
-            @RequestBody SpecialRateRequestDto request
+            @Valid @RequestBody SpecialRateRequestDto request
     ) {
         SpecialRateResponseDto createdRate =
                 specialRateService.createSpecialRate(
@@ -98,7 +100,7 @@ public class SpecialRateController {
     @PutMapping("/{id}")
     public ResponseEntity<SpecialRateResponseDto> updateSpecialRate(
             @PathVariable Long id,
-            @RequestBody SpecialRateRequestDto request
+            @Valid @RequestBody SpecialRateRequestDto request
     ) {
         return ResponseEntity.ok(
                 specialRateService.updateSpecialRate(

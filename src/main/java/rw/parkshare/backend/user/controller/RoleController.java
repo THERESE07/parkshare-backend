@@ -1,5 +1,7 @@
 package rw.parkshare.backend.user.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +26,7 @@ public class RoleController {
      */
     @PostMapping
     public ResponseEntity<RoleResponseDto> createRole(
-            @RequestBody RoleRequestDto request
+            @Valid @RequestBody RoleRequestDto request
     ) {
         RoleResponseDto createdRole =
                 roleService.createRole(request);
@@ -74,7 +76,7 @@ public class RoleController {
     @PutMapping("/{id}")
     public ResponseEntity<RoleResponseDto> updateRole(
             @PathVariable Long id,
-            @RequestBody RoleRequestDto request
+            @Valid @RequestBody RoleRequestDto request
     ) {
         return ResponseEntity.ok(
                 roleService.updateRole(

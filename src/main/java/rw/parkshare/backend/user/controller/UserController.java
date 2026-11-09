@@ -1,5 +1,9 @@
 package rw.parkshare.backend.user.controller;
 
+import rw.parkshare.backend.common.dto.PageResponse;
+
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +28,7 @@ public class UserController {
      */
     @PostMapping
     public ResponseEntity<UserResponseDto> createUser(
-            @RequestBody UserRequestDto request
+            @Valid @RequestBody UserRequestDto request
     ) {
         UserResponseDto createdUser =
                 userService.createUser(request);
@@ -62,9 +66,12 @@ public class UserController {
      * Get all users.
      */
     @GetMapping
-    public ResponseEntity<List<UserResponseDto>> getAllUsers() {
+    public ResponseEntity<PageResponse<UserResponseDto>> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
         return ResponseEntity.ok(
-                userService.getAllUsers()
+                userService.getAllUsers(page, size)
         );
     }
 
@@ -74,7 +81,7 @@ public class UserController {
     @PutMapping("/{id}")
     public ResponseEntity<UserResponseDto> updateUser(
             @PathVariable Long id,
-            @RequestBody UserRequestDto request
+            @Valid @RequestBody UserRequestDto request
     ) {
         return ResponseEntity.ok(
                 userService.updateUser(

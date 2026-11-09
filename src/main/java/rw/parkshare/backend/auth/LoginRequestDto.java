@@ -1,8 +1,14 @@
 package rw.parkshare.backend.auth;
 
+import jakarta.validation.constraints.*;
+
 public class LoginRequestDto {
 
+    @NotBlank
+    @Size(max = 255)
     private String email;
+    @NotBlank
+    @Size(max = 128)
     private String password;
 
     public LoginRequestDto() {

@@ -1,5 +1,7 @@
 package rw.parkshare.backend.user.service;
 
+import rw.parkshare.backend.common.dto.PageResponse;
+
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -118,12 +120,11 @@ public class UserService {
      * Get all users.
      */
     @Transactional(readOnly = true)
-    public List<UserResponseDto> getAllUsers() {
-
-        return userRepository.findAll()
-                .stream()
-                .map(this::toResponseDto)
-                .toList();
+    public PageResponse<UserResponseDto> getAllUsers(int page, int size) {
+        return PageResponse.of(
+                userRepository.findAll(PageResponse.request(page, size, "createdAt")),
+                this::toResponseDto
+        );
     }
 
     /**

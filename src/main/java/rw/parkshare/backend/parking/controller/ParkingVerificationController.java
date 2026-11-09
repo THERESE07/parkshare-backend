@@ -1,5 +1,7 @@
 package rw.parkshare.backend.parking.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +26,7 @@ public class ParkingVerificationController {
     @PostMapping("/parking-lot/{parkingLotId}")
     public ResponseEntity<ParkingVerificationResponseDto> createVerification(
             @PathVariable Long parkingLotId,
-            @RequestBody ParkingVerificationRequestDto request
+            @Valid @RequestBody ParkingVerificationRequestDto request
     ) {
         ParkingVerificationResponseDto createdVerification =
                 verificationService.createVerification(
@@ -42,7 +44,7 @@ public class ParkingVerificationController {
     createVerificationWithVerifier(
             @PathVariable Long parkingLotId,
             @PathVariable Long verifiedById,
-            @RequestBody ParkingVerificationRequestDto request
+            @Valid @RequestBody ParkingVerificationRequestDto request
     ) {
         ParkingVerificationResponseDto createdVerification =
                 verificationService.createVerification(

@@ -1,5 +1,7 @@
 package rw.parkshare.backend.parking.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +26,7 @@ public class ParkingFeatureController {
     @PostMapping("/parking-lot/{parkingLotId}")
     public ResponseEntity<ParkingFeatureResponseDto> createFeature(
             @PathVariable Long parkingLotId,
-            @RequestBody ParkingFeatureRequestDto request
+            @Valid @RequestBody ParkingFeatureRequestDto request
     ) {
         ParkingFeatureResponseDto createdFeature =
                 parkingFeatureService.createFeature(
@@ -100,7 +102,7 @@ public class ParkingFeatureController {
     @PutMapping("/{id}")
     public ResponseEntity<ParkingFeatureResponseDto> updateFeature(
             @PathVariable Long id,
-            @RequestBody ParkingFeatureRequestDto request
+            @Valid @RequestBody ParkingFeatureRequestDto request
     ) {
         return ResponseEntity.ok(
                 parkingFeatureService.updateFeature(

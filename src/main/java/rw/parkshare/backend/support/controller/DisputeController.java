@@ -1,5 +1,7 @@
 package rw.parkshare.backend.support.controller;
 
+import jakarta.validation.Valid;
+
 import rw.parkshare.backend.common.dto.DisputeRequestDto;
 import rw.parkshare.backend.common.dto.DisputeResponseDto;
 import rw.parkshare.backend.support.service.DisputeService;
@@ -23,7 +25,7 @@ public class DisputeController {
     public ResponseEntity<DisputeResponseDto> createDispute(
             @PathVariable Long reservationId,
             @PathVariable Long userId,
-            @RequestBody DisputeRequestDto request
+            @Valid @RequestBody DisputeRequestDto request
     ) {
         return ResponseEntity.ok(
                 disputeService.createDispute(
@@ -165,7 +167,7 @@ public class DisputeController {
     @PutMapping("/{disputeId}")
     public ResponseEntity<DisputeResponseDto> updateDispute(
             @PathVariable Long disputeId,
-            @RequestBody DisputeRequestDto request
+            @Valid @RequestBody DisputeRequestDto request
     ) {
         return ResponseEntity.ok(
                 disputeService.updateDispute(

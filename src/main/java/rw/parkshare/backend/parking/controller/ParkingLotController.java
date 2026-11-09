@@ -1,5 +1,7 @@
 package rw.parkshare.backend.parking.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +26,7 @@ public class ParkingLotController {
     @PostMapping("/operator/{operatorId}")
     public ResponseEntity<ParkingLotResponseDto> createParkingLot(
             @PathVariable Long operatorId,
-            @RequestBody ParkingLotRequestDto request
+            @Valid @RequestBody ParkingLotRequestDto request
     ) {
         ParkingLotResponseDto createdParkingLot =
                 parkingLotService.createParkingLot(
@@ -116,7 +118,7 @@ public class ParkingLotController {
     @PutMapping("/{id}")
     public ResponseEntity<ParkingLotResponseDto> updateParkingLot(
             @PathVariable Long id,
-            @RequestBody ParkingLotRequestDto request
+            @Valid @RequestBody ParkingLotRequestDto request
     ) {
         return ResponseEntity.ok(
                 parkingLotService.updateParkingLot(

@@ -1,5 +1,9 @@
 package rw.parkshare.backend.admin.controller;
 
+import rw.parkshare.backend.common.dto.PageResponse;
+
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +29,7 @@ public class AuditLogController {
     @PostMapping
     public ResponseEntity<AuditLogResponseDto> createAuditLog(
             @RequestParam(required = false) Long userId,
-            @RequestBody AuditLogRequestDto request
+            @Valid @RequestBody AuditLogRequestDto request
     ) {
         AuditLogResponseDto created = auditLogService.createAuditLog(
                 userId,
@@ -47,9 +51,12 @@ public class AuditLogController {
     }
 
     @GetMapping
-    public ResponseEntity<List<AuditLogResponseDto>> getAllAuditLogs() {
+    public ResponseEntity<PageResponse<AuditLogResponseDto>> getAllAuditLogs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
         return ResponseEntity.ok(
-                auditLogService.getAllAuditLogs()
+                auditLogService.getAllAuditLogs(page, size)
         );
     }
 
@@ -171,7 +178,7 @@ public class AuditLogController {
     public ResponseEntity<AuditLogResponseDto> updateAuditLog(
             @PathVariable Long id,
             @RequestParam(required = false) Long userId,
-            @RequestBody AuditLogRequestDto request
+            @Valid @RequestBody AuditLogRequestDto request
     ) {
         return ResponseEntity.ok(
                 auditLogService.updateAuditLog(

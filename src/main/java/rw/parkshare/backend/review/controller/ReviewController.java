@@ -1,5 +1,7 @@
 package rw.parkshare.backend.review.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,7 +29,7 @@ public class ReviewController {
             @RequestParam Long userId,
             @RequestParam Long parkingLotId,
             @RequestParam(required = false) Long reservationId,
-            @RequestBody ReviewRequestDto request
+            @Valid @RequestBody ReviewRequestDto request
     ) {
         ReviewResponseDto createdReview =
                 reviewService.createReview(
@@ -148,7 +150,7 @@ public class ReviewController {
     @PutMapping("/{reviewId}")
     public ResponseEntity<ReviewResponseDto> updateReview(
             @PathVariable Long reviewId,
-            @RequestBody ReviewRequestDto request
+            @Valid @RequestBody ReviewRequestDto request
     ) {
         return ResponseEntity.ok(
                 reviewService.updateReview(

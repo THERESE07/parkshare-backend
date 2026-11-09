@@ -1,15 +1,23 @@
 package rw.parkshare.backend.common.dto;
 
+import jakarta.validation.constraints.*;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 public class PricingRuleRequestDto {
 
+    @Size(max = 100)
     private String name;
+    @Pattern(regexp = "HOURLY|DAILY|FLAT", message = "must be one of HOURLY, DAILY, FLAT")
     private String pricingType;
+    @PositiveOrZero
     private BigDecimal amount;
+    @Pattern(regexp = "RWF", message = "must be RWF")
     private String currency;
+    @Positive
     private Integer minimumDurationMinutes;
+    @Positive
     private Integer maximumDurationMinutes;
     private boolean active;
     private OffsetDateTime effectiveFrom;

@@ -1,5 +1,7 @@
 package rw.parkshare.backend.parking.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +26,7 @@ public class PricingRuleController {
     @PostMapping("/parking-lot/{parkingLotId}")
     public ResponseEntity<PricingRuleResponseDto> createPricingRule(
             @PathVariable Long parkingLotId,
-            @RequestBody PricingRuleRequestDto request
+            @Valid @RequestBody PricingRuleRequestDto request
     ) {
         PricingRuleResponseDto createdRule =
                 pricingRuleService.createPricingRule(
@@ -135,7 +137,7 @@ public class PricingRuleController {
     @PutMapping("/{id}")
     public ResponseEntity<PricingRuleResponseDto> updatePricingRule(
             @PathVariable Long id,
-            @RequestBody PricingRuleRequestDto request
+            @Valid @RequestBody PricingRuleRequestDto request
     ) {
         return ResponseEntity.ok(
                 pricingRuleService.updatePricingRule(

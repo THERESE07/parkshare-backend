@@ -1,5 +1,7 @@
 package rw.parkshare.backend.common.dto;
 
+import jakarta.validation.constraints.*;
+
 import rw.parkshare.backend.reservation.entity.ReservationStatus;
 
 import java.math.BigDecimal;
@@ -12,7 +14,9 @@ public class ReservationRequestDto {
     private OffsetDateTime endTime;
     private ReservationStatus status;
     private BigDecimal totalAmount;
+    @Pattern(regexp = "RWF", message = "must be RWF")
     private String currency;
+    @Size(max = 1000)
     private String notes;
 
     public ReservationRequestDto() {

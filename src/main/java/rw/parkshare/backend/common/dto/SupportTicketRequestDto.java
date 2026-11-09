@@ -1,12 +1,18 @@
 package rw.parkshare.backend.common.dto;
 
+import jakarta.validation.constraints.*;
+
 public class SupportTicketRequestDto {
 
     private String ticketNumber;
+    @Size(max = 200)
     private String subject;
+    @Size(max = 5000)
     private String description;
+    @Pattern(regexp = "GENERAL|ACCOUNT|PARKING|RESERVATION|PAYMENT|TECHNICAL|REFUND|OTHER", message = "must be one of GENERAL, ACCOUNT, PARKING, RESERVATION, PAYMENT, TECHNICAL, REFUND, OTHER")
     private String category;
     private String status;
+    @Pattern(regexp = "LOW|MEDIUM|HIGH|URGENT", message = "must be one of LOW, MEDIUM, HIGH, URGENT")
     private String priority;
 
     public SupportTicketRequestDto() {

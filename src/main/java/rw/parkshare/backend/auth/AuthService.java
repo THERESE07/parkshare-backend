@@ -23,6 +23,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final rw.parkshare.backend.auth.otp.AccountVerificationService verificationService;
+    private final rw.parkshare.backend.auth.token.RefreshTokenService refreshTokenService;
 
     public AuthService(
             UserRepository userRepository,
@@ -30,8 +31,10 @@ public class AuthService {
             UserRoleRepository userRoleRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            rw.parkshare.backend.auth.otp.AccountVerificationService verificationService
+            rw.parkshare.backend.auth.otp.AccountVerificationService verificationService,
+            rw.parkshare.backend.auth.token.RefreshTokenService refreshTokenService
     ) {
+        this.refreshTokenService = refreshTokenService;
         this.verificationService = verificationService;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -129,6 +132,29 @@ public class AuthService {
             throw new BadCredentialsException("Invalid email or password");
         }
 
+        return tokensFor(user, refreshTokenService.issueNewLogin(user.getId()));
+    }
+
+    /** Exchanges a refresh token for a new access token and a new refresh token. */
+    @org.springframework.transaction.annotation.Transactional(noRollbackFor = {
+            rw.parkshare.backend.common.exception.ApiException.class,
+            org.springframework.security.core.AuthenticationException.class})
+    public LoginResponseDto refresh(String refreshToken) {
+        rw.parkshare.backend.auth.token.RefreshTokenService.Rotation rotation = refreshTokenService.rotate(refreshToken);
+        User user = userRepository.findById(rotation.userId())
+                .orElseThrow(() -> new BadCredentialsException("Account not found"));
+        if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
+            refreshTokenService.revokeAllForUser(user.getId());
+            throw new BadCredentialsException("User account is not active");
+        }
+        return tokensFor(user, rotation.refreshToken());
+    }
+
+    public void logout(String refreshToken) {
+        refreshTokenService.logout(refreshToken);
+    }
+
+    private LoginResponseDto tokensFor(User user, String refreshToken) {
         List<String> roles = userRoleRepository
                 .findByUserId(user.getId())
                 .stream()
@@ -146,7 +172,7 @@ public class AuthService {
                 roles
         );
 
-        return new LoginResponseDto(
+        LoginResponseDto response = new LoginResponseDto(
                 token,
                 "Bearer",
                 user.getId(),
@@ -155,6 +181,10 @@ public class AuthService {
                 user.getLastName(),
                 roles
         );
+        response.setRefreshToken(refreshToken);
+        response.setExpiresIn(jwtService.accessTokenSeconds());
+        response.setRefreshExpiresIn(refreshTokenService.refreshTokenSeconds());
+        return response;
     }
 
     private void validateRegistrationRequest(RegisterRequestDto request) {

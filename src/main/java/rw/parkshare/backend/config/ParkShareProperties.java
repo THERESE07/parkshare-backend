@@ -150,6 +150,10 @@ public class ParkShareProperties {
     public static class Security {
         /** Comma-separated list of frontend origins allowed by CORS. */
         private String allowedOrigins = "http://localhost:3000,http://localhost:5173";
+        /** Lifetime of access tokens (JWT). Short, because they cannot be revoked. */
+        private int accessTokenMinutes = 30;
+        /** Lifetime of refresh tokens; each use replaces the token with a new one. */
+        private int refreshTokenDays = 30;
         /** Optional bootstrap admin, created at startup if both are set. */
         private String adminEmail;
         private String adminPassword;

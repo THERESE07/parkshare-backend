@@ -592,6 +592,76 @@ class ParkingJourneyIntegrationTest {
                 .as("declined payment leaves the booking unpaid").isEqualTo("PENDING");
     }
 
+    @Test
+    void driversOnlySeeApprovedLotsAndLotsIncludeDistrict() throws Exception {
+        String pending = call(post("/api/parking-lots/operator/" + operatorId).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Hidden Lot " + SEQ.incrementAndGet() + "\",\"address\":\"KN 1 Rd\",\"district\":\"Nyarugenge\",\"city\":\"Kigali\",\"totalCapacity\":2}"),
+                operatorToken).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        Long pendingId = id(pending);
+        Long activeId = activeLotWithSpaces(1);
+
+        String driverList = call(get("/api/parking-lots"), driverToken).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        java.util.List<Integer> driverIds = JsonPath.read(driverList, "$[*].id");
+        java.util.List<String> statuses = JsonPath.read(driverList, "$[*].status");
+        assertThat(driverIds).contains(activeId.intValue()).doesNotContain(pendingId.intValue());
+        assertThat(statuses).containsOnly("ACTIVE");
+        call(get("/api/parking-lots/status/PENDING"), driverToken)
+                .andExpect(jsonPath("$[?(@.id == " + pendingId + ")]").isEmpty());
+        call(get("/api/parking-lots/" + pendingId), driverToken).andExpect(status().isNotFound());
+
+        // The owner and admins still see it
+        call(get("/api/parking-lots/" + pendingId), operatorToken).andExpect(status().isOk())
+                .andExpect(jsonPath("$.district").value("Nyarugenge"));
+        call(get("/api/parking-lots/" + pendingId), adminToken).andExpect(status().isOk());
+        call(get("/api/parking-lots/" + activeId), driverToken).andExpect(jsonPath("$.district").value("Gasabo"));
+    }
+
+    @Test
+    void refreshTokensRotateAndStolenTokensAreDetected() throws Exception {
+        String email = jdbc.queryForObject("select email from users where id = ?", String.class, driverId);
+        String login = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + email + "\",\"password\":\"Password123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expiresIn").value(1800))
+                .andExpect(jsonPath("$.refreshToken").isString())
+                .andReturn().getResponse().getContentAsString();
+        String first = JsonPath.read(login, "$.refreshToken");
+
+        String refreshed = refresh(first).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String second = JsonPath.read(refreshed, "$.refreshToken");
+        String access = JsonPath.read(refreshed, "$.token");
+        assertThat(second).isNotEqualTo(first);
+        call(get("/api/me"), access).andExpect(status().isOk());
+
+        // Someone replays the old token: refused, and the whole session is shut down
+        refresh(first).andExpect(status().isUnauthorized());
+        refresh(second).andExpect(status().isUnauthorized());
+
+        // Logout ends a session
+        String again = JsonPath.read(mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"" + email + "\",\"password\":\"Password123\"}"))
+                .andReturn().getResponse().getContentAsString(), "$.refreshToken");
+        mvc.perform(post("/api/auth/logout").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"" + again + "\"}")).andExpect(status().isNoContent());
+        refresh(again).andExpect(status().isUnauthorized());
+
+        // Changing the password signs out other devices
+        String device = JsonPath.read(mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"" + email + "\",\"password\":\"Password123\"}"))
+                .andReturn().getResponse().getContentAsString(), "$.refreshToken");
+        call(post("/api/me/password").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPassword\":\"Password123\",\"newPassword\":\"Changed123\"}"), driverToken)
+                .andExpect(status().isOk());
+        refresh(device).andExpect(status().isUnauthorized());
+    }
+
+    private ResultActions refresh(String refreshToken) throws Exception {
+        return mvc.perform(post("/api/auth/refresh").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"" + refreshToken + "\"}"));
+    }
+
     private void waitForStatus(Long reservationId, String expected) throws InterruptedException {
         for (int i = 0; i < 50; i++) {
             if (expected.equals(jdbc.queryForObject("select status from reservations where id = ?", String.class, reservationId))) {

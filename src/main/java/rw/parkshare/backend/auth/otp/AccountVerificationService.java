@@ -27,9 +27,12 @@ public class AccountVerificationService {
     private final OtpService otpService;
     private final PasswordEncoder passwordEncoder;
     private final ParkShareProperties properties;
+    private final rw.parkshare.backend.auth.token.RefreshTokenService refreshTokenService;
 
     public AccountVerificationService(UserRepository userRepository, OtpService otpService,
-                                      PasswordEncoder passwordEncoder, ParkShareProperties properties) {
+                                      PasswordEncoder passwordEncoder, ParkShareProperties properties,
+                                      rw.parkshare.backend.auth.token.RefreshTokenService refreshTokenService) {
+        this.refreshTokenService = refreshTokenService;
         this.userRepository = userRepository;
         this.otpService = otpService;
         this.passwordEncoder = passwordEncoder;
@@ -114,6 +117,7 @@ public class AccountVerificationService {
 
         User user = c.user();
         user.setPasswordHash(passwordEncoder.encode(newPassword));
+        refreshTokenService.revokeAllForUser(user.getId()); // sign out every device
         // Receiving the code proves the user controls this phone/email.
         if (c.channel() == OtpCode.Channel.SMS && user.getPhoneVerifiedAt() == null) {
             user.setPhoneVerifiedAt(OffsetDateTime.now());

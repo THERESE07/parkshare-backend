@@ -77,23 +77,55 @@ export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
-let token: string | null = localStorage.getItem("ps_token");
-export const setToken = (t: string | null) => {
-  token = t;
-  t ? localStorage.setItem("ps_token", t) : localStorage.removeItem("ps_token");
-};
+// Access token: short-lived (30 min), kept in memory.
+// Refresh token: 30 days, replaced on every refresh. Keep it in localStorage (web)
+// or secure storage (mobile).
+let accessToken: string | null = null;
+const getRefresh = () => localStorage.getItem("ps_refresh");
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+export function saveSession(login: { token: string; refreshToken: string }) {
+  accessToken = login.token;
+  localStorage.setItem("ps_refresh", login.refreshToken);
+}
+
+export function clearSession() {
+  accessToken = null;
+  localStorage.removeItem("ps_refresh");
+}
+
+// Only ONE refresh may run at a time: the old refresh token stops working the
+// moment it is used, so two parallel refreshes would log the user out.
+let refreshing: Promise<boolean> | null = null;
+function refreshSession(): Promise<boolean> {
+  refreshing ??= (async () => {
+    const refreshToken = getRefresh();
+    if (!refreshToken) return false;
+    const res = await fetch(`${API_URL}/api/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!res.ok) { clearSession(); return false; }
+    saveSession(await res.json());
+    return true;
+  })().finally(() => { refreshing = null; });
+  return refreshing;
+}
+
+export async function api<T>(path: string, init: RequestInit = {}, retried = false): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...init.headers,
     },
   });
-  if (res.status === 401) {          // token missing or expired (24h)
-    setToken(null);
+  if (res.status === 401 && !retried && (await refreshSession())) {
+    return api<T>(path, init, true);   // access token expired: refreshed, try once more
+  }
+  if (res.status === 401) {
+    clearSession();
     window.location.assign("/login");
     throw new ApiError(401, "Please log in again");
   }
@@ -105,7 +137,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 ```
 
-Mobile: store the token with `expo-secure-store` / Keychain / Keystore, not plain storage.
+On app start, call `refreshSession()` to restore the login from the stored refresh token.
+
+Mobile: store the refresh token with `expo-secure-store` / Keychain / Keystore, not plain storage.
 
 ---
 
@@ -115,13 +149,19 @@ Mobile: store the token with `expo-secure-store` / Keychain / Keystore, not plai
 |---|---|
 | Register driver | `POST /api/auth/register` `{firstName, lastName, email, phone, password}` |
 | Register operator | same, plus `"accountType": "OPERATOR"` |
-| Log in | `POST /api/auth/login` `{email, password}` → `{token, tokenType, userId, email, firstName, lastName, roles}` |
+| Log in | `POST /api/auth/login` `{email, password}` → `{token, refreshToken, expiresIn, refreshExpiresIn, tokenType, userId, email, firstName, lastName, roles}` |
+| Stay logged in | `POST /api/auth/refresh` `{refreshToken}` → same shape as login, with a **new** `refreshToken` |
+| Log out | `POST /api/auth/logout` `{refreshToken}` → `204`, then clear the stored tokens |
 | Current user | `GET /api/me` → includes `roles`, `phoneVerified`, `emailVerified` |
 | Update profile | `PATCH /api/me` `{firstName?, lastName?, phone?}` |
 | Change password | `POST /api/me/password` `{currentPassword, newPassword}` |
 
 - Send `Authorization: Bearer <token>` on every other request.
-- Tokens last **24 hours** and there is no refresh token yet. On `401`, send the user to login.
+- The access `token` lasts **30 minutes** (`expiresIn` seconds). When a request gets `401`,
+  call refresh once and retry (the client in section 4 does this).
+- The `refreshToken` lasts **30 days** and is **replaced on every refresh**: always save the new one.
+  Using an old one again is treated as theft and ends the session on all devices using it.
+- Changing or resetting the password signs out all other devices.
 - Roles: `DRIVER`, `OPERATOR`, `ATTENDANT`, `EVENT_ORGANIZER`, `ADMIN`. Route users to the right
   area after login based on `roles`.
 - Password rule: at least 8 characters with a letter and a number.
@@ -163,7 +203,7 @@ Every error has the same shape:
 | Status | Meaning | What the UI should do |
 |---|---|---|
 | 400 | Invalid input. Validation messages look like `"field: message; field2: message"` | Show `message`, or split on `; ` to mark fields |
-| 401 | Not logged in / token expired | Go to login |
+| 401 | Not logged in / session ended | Refresh once (client does it); if that fails, go to login |
 | 403 | Logged in but not allowed (not your booking, wrong role) | "You don't have access to this" |
 | 404 | Not found | Not-found state |
 | 409 | Business conflict (space taken, already paid, wrong status) | Show `message`; it is written for users |
@@ -217,8 +257,9 @@ GET /api/reservations/user/12?page=0&size=20
 ## 9. Driver flows
 
 ### Find parking
-- Approved lots only: `GET /api/parking-lots/status/ACTIVE`
-  (`GET /api/parking-lots` also returns lots still awaiting approval, so don't use it for drivers)
+- All lots: `GET /api/parking-lots`. Drivers only ever receive approved (`ACTIVE`) lots;
+  operators also see their own unapproved lots; admins see everything.
+- Each lot includes `district`, `city`, `address`, `latitude`, `longitude`, `contactPhone`.
 - Search by name: `GET /api/parking-lots/search?name=heights`; by city: `/api/parking-lots/city?city=Kigali`
 - Opening hours: `GET /api/parking-operating-hours/parking-lot/{lotId}`
 - Features (EV, covered…): `GET /api/parking-features/parking-lot/{lotId}`
@@ -342,19 +383,17 @@ Users: `GET /api/users?page=0`.
 - [ ] Frontend origin(s) sent to the backend owner for `PARKSHARE_SECURITY_ALLOWEDORIGINS`
 - [ ] Both sides on HTTPS (browsers block HTTPS pages calling HTTP APIs)
 - [ ] Types regenerated from the deployed `/v3/api-docs`
-- [ ] 401 handling sends users to login (tokens expire after 24h)
+- [ ] Refresh flow tested: leave the app open 30+ minutes, then use it (it should not log you out)
 - [ ] First request on the free trial can take ~1 minute (server waking up): show a
       friendly "Waking up the server…" state instead of failing
 - [ ] Sandbox payment notice visible in trial builds ("Test mode: no real money")
 
 ## 14. Not available yet (don't build against these)
 
-- Refresh tokens (re-login after 24h)
 - Push notifications (poll notifications instead)
 - Real MTN/Airtel payments (sandbox only)
 - Image uploads (lot photos, documents)
 - Map/distance search (`latitude`/`longitude` are returned; sort by distance client-side)
-- `district` is accepted when creating a lot but not yet returned in lot responses
 
 Questions or a missing field? Ask the backend owner before working around it.
 Changing the API early is cheaper than adding workarounds.

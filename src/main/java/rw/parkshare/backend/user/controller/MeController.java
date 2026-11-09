@@ -30,8 +30,11 @@ public class MeController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AccessGuard guard;
+    private final rw.parkshare.backend.auth.token.RefreshTokenService refreshTokenService;
 
-    public MeController(UserRepository userRepository, PasswordEncoder passwordEncoder, AccessGuard guard) {
+    public MeController(UserRepository userRepository, PasswordEncoder passwordEncoder, AccessGuard guard,
+                        rw.parkshare.backend.auth.token.RefreshTokenService refreshTokenService) {
+        this.refreshTokenService = refreshTokenService;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.guard = guard;
@@ -84,6 +87,7 @@ public class MeController {
             throw ApiException.badRequest("New password needs at least 8 characters, including a letter and a number");
         }
         user.setPasswordHash(passwordEncoder.encode(next));
+        refreshTokenService.revokeAllForUser(user.getId()); // log out other devices
         user.setUpdatedAt(OffsetDateTime.now());
         userRepository.save(user);
         return ResponseEntity.ok(Map.of("message", "Password changed"));

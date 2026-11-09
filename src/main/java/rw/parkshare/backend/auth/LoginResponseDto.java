@@ -88,4 +88,35 @@ public class LoginResponseDto {
     public void setRoles(List<String> roles) {
         this.roles = roles;
     }
+
+    /** Use with POST /api/auth/refresh to get a new access token. Replaced on every refresh. */
+    private String refreshToken;
+    /** Seconds until the access token expires. */
+    private long expiresIn;
+    /** Seconds until the refresh token expires. */
+    private long refreshExpiresIn;
+
+    public String getRefreshToken() {
+        return refreshToken;
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
+    }
+
+    public long getExpiresIn() {
+        return expiresIn;
+    }
+
+    public void setExpiresIn(long expiresIn) {
+        this.expiresIn = expiresIn;
+    }
+
+    public long getRefreshExpiresIn() {
+        return refreshExpiresIn;
+    }
+
+    public void setRefreshExpiresIn(long refreshExpiresIn) {
+        this.refreshExpiresIn = refreshExpiresIn;
+    }
 }

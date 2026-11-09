@@ -41,10 +41,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "parkshare.payments.webhook-secret=test-webhook-secret",
         "parkshare.security.admin-email=admin@parkshare.rw",
         "parkshare.security.admin-password=AdminPassword123",
-        "parkshare.scheduler.initial-delay-ms=3600000"
+        "parkshare.scheduler.initial-delay-ms=3600000",
+        "parkshare.messaging.async=false",
+        "parkshare.payments.sandbox-auto-approve-seconds=0"
 })
 @AutoConfigureMockMvc
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, ParkingJourneyIntegrationTest.CapturedMessages.class})
 class ParkingJourneyIntegrationTest {
 
     private static final String WEBHOOK_SECRET = "test-webhook-secret";
@@ -54,6 +56,45 @@ class ParkingJourneyIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired ReservationScheduler scheduler;
     @Autowired PlatformTransactionManager transactionManager;
+    @Autowired rw.parkshare.backend.config.ParkShareProperties properties;
+
+    /** Replaces real SMS/email delivery so tests can read what would have been sent. */
+    @org.springframework.boot.test.context.TestConfiguration
+    static class CapturedMessages {
+        static final java.util.Queue<String[]> SMS = new java.util.concurrent.ConcurrentLinkedQueue<>();
+        static final java.util.Queue<String[]> EMAIL = new java.util.concurrent.ConcurrentLinkedQueue<>();
+
+        @org.springframework.context.annotation.Bean
+        @org.springframework.context.annotation.Primary
+        rw.parkshare.backend.notification.sms.SmsSender capturingSms() {
+            return (phone, message) -> SMS.add(new String[]{phone, message});
+        }
+
+        @org.springframework.context.annotation.Bean
+        @org.springframework.context.annotation.Primary
+        rw.parkshare.backend.notification.email.EmailSender capturingEmail() {
+            return (to, subject, body) -> EMAIL.add(new String[]{to, subject, body});
+        }
+    }
+
+    /** Latest 6-digit code sent to this phone or email. */
+    private static String lastCodeSentTo(String destination) {
+        String code = null;
+        java.util.regex.Pattern p = java.util.regex.Pattern.compile("code is (\\d{6})");
+        for (String[] m : CapturedMessages.SMS) {
+            if (m[0].equals(destination)) {
+                java.util.regex.Matcher matcher = p.matcher(m[1]);
+                if (matcher.find()) code = matcher.group(1);
+            }
+        }
+        for (String[] m : CapturedMessages.EMAIL) {
+            if (m[0].equals(destination)) {
+                java.util.regex.Matcher matcher = p.matcher(m[2]);
+                if (matcher.find()) code = matcher.group(1);
+            }
+        }
+        return code;
+    }
 
     private String adminToken;
     private String operatorToken;
@@ -85,6 +126,7 @@ class ParkingJourneyIntegrationTest {
     @Test
     void fullParkingJourney() throws Exception {
         Long lotId = activeLotWithSpaces(1);
+        verifyOperatorAsVatRegistered();
 
         // Driver sees the price first: 2h at the operator's 400 RWF/h
         OffsetDateTime start = OffsetDateTime.now(ZoneOffset.ofHours(2)).plusMinutes(5).truncatedTo(ChronoUnit.MINUTES);
@@ -95,7 +137,12 @@ class ParkingJourneyIntegrationTest {
                 .andExpect(jsonPath("$.total").value(800.0))
                 .andExpect(jsonPath("$.vatAmount").value(122.0))
                 .andExpect(jsonPath("$.amountExcludingVat").value(678.0))
-                .andExpect(jsonPath("$.currency").value("RWF"));
+                .andExpect(jsonPath("$.vatIncluded").value(true))
+                .andExpect(jsonPath("$.currency").value("RWF"))
+                // Drivers never see ParkShare's or the operator's share
+                .andExpect(jsonPath("$.platformCommission").doesNotExist())
+                .andExpect(jsonPath("$.mobileMoneyFee").doesNotExist())
+                .andExpect(jsonPath("$.operatorReceives").doesNotExist());
 
         // Booking on behalf of someone else is refused for non-admins
         call(post("/api/reservations")
@@ -391,6 +438,195 @@ class ParkingJourneyIntegrationTest {
         call(get("/api/users").param("size", "5000"), adminToken)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size").value(100));
+    }
+
+    @Test
+    void operatorSeesWhatDriversPayAndWhatTheyEarn() throws Exception {
+        Long lotId = activeLotWithSpaces(1);
+
+        // Not VAT-verified yet: no VAT, operator keeps 800 - 80 commission - 12 MoMo fee
+        call(get("/api/pricing/operator-preview").param("parkingLotId", lotId.toString())
+                .param("paymentMethod", "MTN_MOMO"), operatorToken)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.vatApplied").value(false))
+                .andExpect(jsonPath("$.examples[1].stay").value("2 hours"))
+                .andExpect(jsonPath("$.examples[1].driverPays").value(800.0))
+                .andExpect(jsonPath("$.examples[1].vatInPrice").value(0.0))
+                .andExpect(jsonPath("$.examples[1].platformCommission").value(80.0))
+                .andExpect(jsonPath("$.examples[1].mobileMoneyFee").value(12.0))
+                .andExpect(jsonPath("$.examples[1].youReceive").value(708.0));
+
+        // After admin verifies VAT registration, VAT is inside the same price
+        verifyOperatorAsVatRegistered();
+        call(get("/api/pricing/operator-preview").param("parkingLotId", lotId.toString())
+                .param("paymentMethod", "MTN_MOMO").param("hourlyRate", "500"), operatorToken)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.vatApplied").value(true))
+                .andExpect(jsonPath("$.basedOn").value(org.hamcrest.Matchers.containsString("Proposed")))
+                .andExpect(jsonPath("$.examples[0].driverPays").value(500.0))
+                .andExpect(jsonPath("$.examples[0].vatToDeclareToRra").value(76.0));
+
+        // Drivers and other operators cannot see it
+        call(get("/api/pricing/operator-preview").param("parkingLotId", lotId.toString()), driverToken)
+                .andExpect(status().isForbidden());
+        int n = SEQ.incrementAndGet();
+        register("op3-" + n + "@example.rw", "0733" + pad(n), "OPERATOR");
+        call(get("/api/pricing/operator-preview").param("parkingLotId", lotId.toString()),
+                login("op3-" + n + "@example.rw", "Password123"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void operatorsCannotVerifyThemselves() throws Exception {
+        call(post("/api/operator-verifications").param("userId", operatorId.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"businessName\":\"Self\",\"tin\":\"123456789\",\"vatRegistered\":true,\"verificationStatus\":\"VERIFIED\"}"),
+                operatorToken)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.verificationStatus").value("PENDING"));
+        // TIN must be 9 digits
+        call(post("/api/operator-verifications").param("userId", operatorId.toString())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"tin\":\"12\"}"), operatorToken)
+                .andExpect(status().isBadRequest());
+        // Nobody can submit a verification for someone else
+        call(post("/api/operator-verifications").param("userId", driverId.toString())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"tin\":\"123456789\"}"), operatorToken)
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void phoneAndEmailAreVerifiedWithCodes() throws Exception {
+        String phone = jdbc.queryForObject("select phone from users where id = ?", String.class, driverId);
+        String email = jdbc.queryForObject("select email from users where id = ?", String.class, driverId);
+
+        // Codes were sent at registration
+        String phoneCode = lastCodeSentTo(phone);
+        String emailCode = lastCodeSentTo(email);
+        assertThat(phoneCode).isNotNull();
+        assertThat(emailCode).isNotNull();
+
+        call(post("/api/me/verify/phone/confirm").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"code\":\"000000\"}"), driverToken).andExpect(status().isBadRequest());
+        call(post("/api/me/verify/phone/confirm").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"code\":\"" + phoneCode + "\"}"), driverToken).andExpect(status().isOk());
+        call(post("/api/me/verify/email/confirm").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"code\":\"" + emailCode + "\"}"), driverToken).andExpect(status().isOk());
+        // A used code cannot be reused
+        call(post("/api/me/verify/email/confirm").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"code\":\"" + emailCode + "\"}"), driverToken).andExpect(status().isBadRequest());
+
+        call(get("/api/me"), driverToken)
+                .andExpect(jsonPath("$.phoneVerified").value(true))
+                .andExpect(jsonPath("$.emailVerified").value(true));
+
+        // Asking again straight away is rate limited
+        call(post("/api/me/verify/phone"), otherDriverToken).andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void forgottenPasswordIsResetWithSmsCode() throws Exception {
+        String phone = jdbc.queryForObject("select phone from users where id = ?", String.class, driverId);
+        String email = jdbc.queryForObject("select email from users where id = ?", String.class, driverId);
+
+        // Same answer for unknown accounts, so attackers cannot discover who is registered
+        mvc.perform(post("/api/auth/password/forgot").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"identifier\":\"0788999111\"}")).andExpect(status().isAccepted());
+        mvc.perform(post("/api/auth/password/forgot").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"identifier\":\"" + phone + "\"}")).andExpect(status().isAccepted());
+        String code = lastCodeSentTo(phone);
+        assertThat(CapturedMessages.SMS).anyMatch(m -> m[0].equals(phone) && m[1].contains("password reset"));
+
+        mvc.perform(post("/api/auth/password/reset").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"identifier\":\"" + phone + "\",\"code\":\"" + code + "\",\"newPassword\":\"NewPassw0rd\"}"))
+                .andExpect(status().isOk());
+        assertThat(login(email, "NewPassw0rd")).isNotBlank();
+        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + email + "\",\"password\":\"Password123\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void confirmationIsSentBySmsAndEmailButRemindersAreNotSms() throws Exception {
+        Long lotId = activeLotWithSpaces(1);
+        String phone = jdbc.queryForObject("select phone from users where id = ?", String.class, driverId);
+        OffsetDateTime start = OffsetDateTime.now().plusHours(3).truncatedTo(ChronoUnit.MINUTES);
+        Long reservationId = book(driverToken, driverVehicleId, lotId, start, start.plusHours(1));
+        String txRef = JsonPath.read(call(post("/api/payments/reservation/" + reservationId + "/initiate")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"method\":\"MTN_MOMO\"}"), driverToken)
+                .andReturn().getResponse().getContentAsString(), "$.transactionReference");
+        call(post("/api/payments/sandbox/" + txRef + "/complete"), driverToken).andExpect(status().isOk());
+
+        assertThat(CapturedMessages.SMS).anyMatch(m -> m[0].equals(phone) && m[1].contains("is confirmed"));
+        // "Reservation created" went in-app + email only (no SMS cost)
+        assertThat(CapturedMessages.SMS).noneMatch(m -> m[0].equals(phone) && m[1].contains("Pay within"));
+        // The MoMo fee is recorded against the payment for operator payouts
+        assertThat(jdbc.queryForObject("select provider_fee from payments where reservation_id = ?",
+                java.math.BigDecimal.class, reservationId)).isEqualByComparingTo("6"); // 400 x 1.5%
+    }
+
+    @Test
+    void sandboxPhoneApprovesOrDeclinesAutomatically() throws Exception {
+        Long lotId = activeLotWithSpaces(2);
+        int n = SEQ.incrementAndGet();
+        String decliningPhone = "0785" + String.format("%03d", n % 1000) + "000"; // ends in 000 = declines
+        Long decliningId = register("broke" + n + "@example.rw", decliningPhone, null);
+        String decliningToken = login("broke" + n + "@example.rw", "Password123");
+        Long decliningVehicle = vehicle(decliningToken, decliningId, "RAF" + n + "C");
+
+        OffsetDateTime start = OffsetDateTime.now().plusHours(2).truncatedTo(ChronoUnit.MINUTES);
+        Long approved = book(driverToken, driverVehicleId, lotId, start, start.plusHours(1));
+        Long declined = book(decliningToken, decliningVehicle, lotId, start, start.plusHours(1));
+
+        properties.getPayments().setSandboxAutoApproveSeconds(1);
+        try {
+            for (Object[] pair : new Object[][]{{approved, driverToken}, {declined, decliningToken}}) {
+                call(post("/api/payments/reservation/" + pair[0] + "/initiate").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"method\":\"MTN_MOMO\"}"), (String) pair[1]).andExpect(status().isAccepted());
+            }
+            waitForStatus(approved, "CONFIRMED");
+            waitForPaymentStatus(declined, "FAILED");
+        } finally {
+            properties.getPayments().setSandboxAutoApproveSeconds(0);
+        }
+        assertThat(jdbc.queryForObject("select status from reservations where id = ?", String.class, declined))
+                .as("declined payment leaves the booking unpaid").isEqualTo("PENDING");
+    }
+
+    private void waitForStatus(Long reservationId, String expected) throws InterruptedException {
+        for (int i = 0; i < 50; i++) {
+            if (expected.equals(jdbc.queryForObject("select status from reservations where id = ?", String.class, reservationId))) {
+                return;
+            }
+            Thread.sleep(200);
+        }
+        throw new AssertionError("Reservation " + reservationId + " never became " + expected);
+    }
+
+    private void waitForPaymentStatus(Long reservationId, String expected) throws InterruptedException {
+        for (int i = 0; i < 50; i++) {
+            if (expected.equals(jdbc.queryForObject("select status from payments where reservation_id = ?", String.class, reservationId))) {
+                return;
+            }
+            Thread.sleep(200);
+        }
+        throw new AssertionError("Payment for " + reservationId + " never became " + expected);
+    }
+
+    /** Operator submits TIN + VAT status; admin verifies it. */
+    private void verifyOperatorAsVatRegistered() throws Exception {
+        String tin = String.format("%09d", operatorId * 1000 + SEQ.incrementAndGet() % 1000);
+        String created = call(post("/api/operator-verifications").param("userId", operatorId.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"businessName\":\"Kigali Parking Ltd\",\"tin\":\"" + tin + "\",\"vatRegistered\":true}"),
+                operatorToken)
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Long adminId = jdbc.queryForObject("select id from users where email = 'admin@parkshare.rw'", Long.class);
+        call(patch("/api/operator-verifications/" + id(created) + "/review").param("reviewerId", adminId.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"verificationStatus\":\"VERIFIED\"}"), adminToken)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.vatRegistered").value(true));
     }
 
     // ------------------------------------------------------------------ helpers

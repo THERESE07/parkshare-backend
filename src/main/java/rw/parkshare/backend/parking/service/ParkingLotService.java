@@ -355,7 +355,7 @@ public class ParkingLotService {
             operatorId = parkingLot.getOperator().getId();
         }
 
-        return new ParkingLotResponseDto(
+        ParkingLotResponseDto dto = new ParkingLotResponseDto(
                 parkingLot.getId(),
                 operatorId,
                 parkingLot.getName(),
@@ -370,5 +370,7 @@ public class ParkingLotService {
                 parkingLot.getCreatedAt(),
                 parkingLot.getUpdatedAt()
         );
+        dto.setDistrict(parkingLot.getDistrict());
+        return dto;
     }
 }

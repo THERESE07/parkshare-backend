@@ -16,10 +16,13 @@ import java.util.List;
 public class ParkingLotController {
 
     private final ParkingLotService parkingLotService;
+    private final rw.parkshare.backend.security.AccessGuard guard;
 
     public ParkingLotController(
-            ParkingLotService parkingLotService
+            ParkingLotService parkingLotService,
+            rw.parkshare.backend.security.AccessGuard guard
     ) {
+        this.guard = guard;
         this.parkingLotService = parkingLotService;
     }
 
@@ -43,16 +46,19 @@ public class ParkingLotController {
     public ResponseEntity<ParkingLotResponseDto> getParkingLotById(
             @PathVariable Long id
     ) {
-        return ResponseEntity.ok(
-                parkingLotService.getParkingLotById(id)
-        );
+        ParkingLotResponseDto lot = parkingLotService.getParkingLotById(id);
+        if (!isVisible(lot)) {
+            // Unapproved lots are hidden from everyone except their operator and admins.
+            throw rw.parkshare.backend.common.exception.ApiException.notFound("Parking lot not found: " + id);
+        }
+        return ResponseEntity.ok(lot);
     }
 
     @GetMapping
     public ResponseEntity<List<ParkingLotResponseDto>>
     getAllParkingLots() {
         return ResponseEntity.ok(
-                parkingLotService.getAllParkingLots()
+                visibleOnly(parkingLotService.getAllParkingLots())
         );
     }
 
@@ -74,9 +80,9 @@ public class ParkingLotController {
             @PathVariable String status
     ) {
         return ResponseEntity.ok(
-                parkingLotService.getParkingLotsByStatus(
+                visibleOnly(parkingLotService.getParkingLotsByStatus(
                         status
-                )
+                ))
         );
     }
 
@@ -86,7 +92,7 @@ public class ParkingLotController {
             @RequestParam String city
     ) {
         return ResponseEntity.ok(
-                parkingLotService.getParkingLotsByCity(city)
+                visibleOnly(parkingLotService.getParkingLotsByCity(city))
         );
     }
 
@@ -111,7 +117,7 @@ public class ParkingLotController {
             @RequestParam String name
     ) {
         return ResponseEntity.ok(
-                parkingLotService.searchParkingLotsByName(name)
+                visibleOnly(parkingLotService.searchParkingLotsByName(name))
         );
     }
 
@@ -158,5 +164,18 @@ public class ParkingLotController {
         parkingLotService.deleteParkingLot(id);
 
         return ResponseEntity.noContent().build();
+    }
+
+    /** Drivers see approved (ACTIVE) lots only; operators also see their own; admins see all. */
+    private List<ParkingLotResponseDto> visibleOnly(List<ParkingLotResponseDto> lots) {
+        return lots.stream().filter(this::isVisible).toList();
+    }
+
+    private boolean isVisible(ParkingLotResponseDto lot) {
+        if ("ACTIVE".equals(lot.getStatus())) {
+            return true;
+        }
+        rw.parkshare.backend.security.CurrentUser me = guard.current();
+        return me.isAdmin() || me.id().equals(lot.getOperatorId());
     }
 }

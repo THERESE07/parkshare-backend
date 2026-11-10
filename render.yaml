@@ -48,12 +48,32 @@ services:
       - key: PARKSHARE_SECURITY_ALLOWEDORIGINS
         sync: false
 
-      # --- Trial mode: no real money, messages written to the log ---
+      # --- Email through Brevo (free: 300/day). Verification codes go by email, ---
+      # --- and a verified email is enough to book. ---
+      - key: PARKSHARE_MESSAGING_EMAILPROVIDER
+        value: smtp
+      - key: SPRING_MAIL_HOST
+        value: smtp-relay.brevo.com
+      - key: SPRING_MAIL_PORT
+        value: "587"
+      - key: SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH
+        value: "true"
+      - key: SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE
+        value: "true"
+      - key: SPRING_MAIL_USERNAME
+        sync: false   # Brevo -> SMTP & API -> SMTP tab -> "Login" (looks like 8a1b2c001@smtp-brevo.com)
+      - key: SPRING_MAIL_PASSWORD
+        sync: false   # Brevo -> SMTP & API -> SMTP tab -> "Generate a new SMTP key"
+      - key: PARKSHARE_MESSAGING_EMAILFROM
+        sync: false   # A sender you verified in Brevo, e.g. ParkShare <parkshare.rw@gmail.com>
+
+      # --- Trial mode: no real money; SMS written to the log (SMS costs money) ---
       - key: PARKSHARE_PAYMENTS_PROVIDER
         value: sandbox
       - key: PARKSHARE_PAYMENTS_SANDBOXENDPOINTSENABLED
         value: "true"
       - key: PARKSHARE_MESSAGING_SMSPROVIDER
         value: log
-      - key: PARKSHARE_MESSAGING_EMAILPROVIDER
-        value: log
+      # Phone codes can't be delivered without real SMS, so don't send them on sign-up.
+      - key: PARKSHARE_MESSAGING_VERIFYPHONEONREGISTER
+        value: "false"

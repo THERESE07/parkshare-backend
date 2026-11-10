@@ -170,7 +170,18 @@ Mobile: store the refresh token with `expo-secure-store` / Keychain / Keystore, 
 
 ### Verification codes (OTP)
 
-Right after registration the backend sends a 6-digit code by SMS (phone) and by email.
+Right after registration the backend sends a 6-digit code by email (and by SMS once SMS is enabled;
+in the trial, SMS is off, so **use email verification**).
+
+**A user must verify their phone or email before booking.** Otherwise `POST /api/reservations` returns:
+
+```json
+{ "status": 403, "code": "VERIFICATION_REQUIRED", "message": "Please verify your phone number or email before booking. ..." }
+```
+
+When you see `code === "VERIFICATION_REQUIRED"`, open the "Enter the code we emailed you" screen,
+then retry the booking. Better: check `GET /api/me` (`emailVerified`, `phoneVerified`) right after
+sign-up/login and show the verification screen before the user starts booking.
 
 | Screen | Request |
 |---|---|
@@ -193,7 +204,7 @@ Right after registration the backend sends a 6-digit code by SMS (phone) and by 
 
 ## 6. Errors
 
-Every error has the same shape:
+Every error has the same shape (`code` is present only for errors the UI should treat specially):
 
 ```json
 { "timestamp": "2026-11-10T10:00:00+02:00", "status": 409, "error": "Conflict",
@@ -204,7 +215,7 @@ Every error has the same shape:
 |---|---|---|
 | 400 | Invalid input. Validation messages look like `"field: message; field2: message"` | Show `message`, or split on `; ` to mark fields |
 | 401 | Not logged in / session ended | Refresh once (client does it); if that fails, go to login |
-| 403 | Logged in but not allowed (not your booking, wrong role) | "You don't have access to this" |
+| 403 | Logged in but not allowed (not your booking, wrong role) | "You don't have access to this", unless `code` is `VERIFICATION_REQUIRED` (show the verify screen) |
 | 404 | Not found | Not-found state |
 | 409 | Business conflict (space taken, already paid, wrong status) | Show `message`; it is written for users |
 | 429 | Too many requests (OTP resend) | Ask the user to wait |

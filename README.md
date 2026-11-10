@@ -100,6 +100,10 @@ All amounts are in Rwandan francs (RWF), whole francs only. Times are interprete
 
 Integration tests start a temporary PostgreSQL with Docker (Testcontainers), so Docker must be running.
 
+## Deployment
+
+Step-by-step trial deployment (Neon + Render): [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ## Frontend Integration
 
 Web and mobile developers: start with [docs/FRONTEND_INTEGRATION.md](docs/FRONTEND_INTEGRATION.md).

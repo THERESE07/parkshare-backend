@@ -121,6 +121,12 @@ public class ReservationService {
         if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
             throw ApiException.forbidden("Your account is not active");
         }
+        if (properties.getReservation().isRequireVerifiedContact() && !caller.isAdmin()
+                && user.getPhoneVerifiedAt() == null && user.getEmailVerifiedAt() == null) {
+            throw new ApiException(org.springframework.http.HttpStatus.FORBIDDEN, "VERIFICATION_REQUIRED",
+                    "Please verify your phone number or email before booking. "
+                            + "Enter the code we sent you, or request a new one.");
+        }
 
         Vehicle vehicle = vehicleRepository.findById(vehicleId)
                 .orElseThrow(() -> ApiException.notFound("Vehicle not found: " + vehicleId));

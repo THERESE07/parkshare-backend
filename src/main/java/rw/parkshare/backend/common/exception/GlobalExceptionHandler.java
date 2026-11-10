@@ -30,7 +30,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<Map<String, Object>> handleApiException(ApiException exception) {
-        return build(exception.getStatus(), exception.getMessage());
+        ResponseEntity<Map<String, Object>> response = build(exception.getStatus(), exception.getMessage());
+        if (exception.getCode() != null && response.getBody() != null) {
+            response.getBody().put("code", exception.getCode());
+        }
+        return response;
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

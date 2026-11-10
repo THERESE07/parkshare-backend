@@ -74,6 +74,8 @@ public class ParkShareProperties {
         private int noShowGraceMinutes = 30;
         /** Cancel at least this long before start for a full refund. */
         private int freeCancellationMinutes = 60;
+        /** Drivers must verify their phone or email (one-time code) before booking. */
+        private boolean requireVerifiedContact = true;
         /** Share refunded when cancelling later than that but before start. */
         private BigDecimal lateCancellationRefundRate = new BigDecimal("0.50");
     }

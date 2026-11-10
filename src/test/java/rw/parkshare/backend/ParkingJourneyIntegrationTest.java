@@ -121,6 +121,9 @@ class ParkingJourneyIntegrationTest {
         otherDriverId = register("other" + n + "@example.rw", "0789" + pad(n), null);
         otherDriverToken = login("other" + n + "@example.rw", "Password123");
         otherVehicleId = vehicle(otherDriverToken, otherDriverId, "RAE" + n + "B");
+
+        // Booking requires a verified phone or email; these drivers entered their email code.
+        jdbc.update("update users set email_verified_at = now() where id in (?, ?)", driverId, otherDriverId);
     }
 
     @Test
@@ -572,6 +575,7 @@ class ParkingJourneyIntegrationTest {
         Long decliningId = register("broke" + n + "@example.rw", decliningPhone, null);
         String decliningToken = login("broke" + n + "@example.rw", "Password123");
         Long decliningVehicle = vehicle(decliningToken, decliningId, "RAF" + n + "C");
+        jdbc.update("update users set email_verified_at = now() where id = ?", decliningId);
 
         OffsetDateTime start = OffsetDateTime.now().plusHours(2).truncatedTo(ChronoUnit.MINUTES);
         Long approved = book(driverToken, driverVehicleId, lotId, start, start.plusHours(1));
@@ -660,6 +664,28 @@ class ParkingJourneyIntegrationTest {
     private ResultActions refresh(String refreshToken) throws Exception {
         return mvc.perform(post("/api/auth/refresh").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"refreshToken\":\"" + refreshToken + "\"}"));
+    }
+
+    @Test
+    void driversMustVerifyPhoneOrEmailBeforeBooking() throws Exception {
+        Long lotId = activeLotWithSpaces(1);
+        int n = SEQ.incrementAndGet();
+        String email = "new" + n + "@example.rw";
+        Long userId = register(email, "0786" + pad(n), null);
+        String token = login(email, "Password123");
+        Long vehicleId = vehicle(token, userId, "RAG" + n + "D");
+        OffsetDateTime start = OffsetDateTime.now().plusHours(2).truncatedTo(ChronoUnit.MINUTES);
+
+        call(post("/api/reservations").param("vehicleId", vehicleId.toString()).param("parkingLotId", lotId.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(window(start, start.plusHours(1))), token)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("VERIFICATION_REQUIRED"))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("verify")));
+
+        // The email code sent at sign-up unlocks booking (SMS is not needed)
+        call(post("/api/me/verify/email/confirm").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"code\":\"" + lastCodeSentTo(email) + "\"}"), token).andExpect(status().isOk());
+        book(token, vehicleId, lotId, start, start.plusHours(1));
     }
 
     private void waitForStatus(Long reservationId, String expected) throws InterruptedException {

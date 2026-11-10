@@ -22,14 +22,20 @@ public class AuthService {
     private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final rw.parkshare.backend.auth.otp.AccountVerificationService verificationService;
+    private final rw.parkshare.backend.auth.token.RefreshTokenService refreshTokenService;
 
     public AuthService(
             UserRepository userRepository,
             RoleRepository roleRepository,
             UserRoleRepository userRoleRepository,
             PasswordEncoder passwordEncoder,
-            JwtService jwtService
+            JwtService jwtService,
+            rw.parkshare.backend.auth.otp.AccountVerificationService verificationService,
+            rw.parkshare.backend.auth.token.RefreshTokenService refreshTokenService
     ) {
+        this.refreshTokenService = refreshTokenService;
+        this.verificationService = verificationService;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.userRoleRepository = userRoleRepository;
@@ -37,19 +43,32 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public RegisterResponseDto register(RegisterRequestDto request) {
 
         validateRegistrationRequest(request);
 
         if (userRepository.existsByEmail(request.getEmail().trim().toLowerCase())) {
-            throw new IllegalArgumentException("Email is already registered");
+            throw rw.parkshare.backend.common.exception.ApiException.conflict("Email is already registered");
+        }
+
+        String phone = rw.parkshare.backend.common.RwandaPhone.requireValid(request.getPhone());
+        if (userRepository.existsByPhone(phone)) {
+            throw rw.parkshare.backend.common.exception.ApiException.conflict("Phone number is already registered");
+        }
+
+        String roleName = request.getAccountType() == null || request.getAccountType().isBlank()
+                ? "DRIVER"
+                : request.getAccountType().trim().toUpperCase();
+        if (!roleName.equals("DRIVER") && !roleName.equals("OPERATOR")) {
+            throw new IllegalArgumentException("accountType must be DRIVER or OPERATOR");
         }
 
         User user = new User();
         user.setFirstName(request.getFirstName().trim());
         user.setLastName(request.getLastName().trim());
         user.setEmail(request.getEmail().trim().toLowerCase());
-        user.setPhone(request.getPhone().trim());
+        user.setPhone(phone);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setStatus("ACTIVE");
         user.setCreatedAt(OffsetDateTime.now());
@@ -57,10 +76,10 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        Role customerRole = roleRepository.findByName("DRIVER")
+        Role customerRole = roleRepository.findByName(roleName)
                 .orElseGet(() -> {
                     Role role = new Role();
-                    role.setName("DRIVER");
+                    role.setName(roleName);
                     return roleRepository.save(role);
                 });
 
@@ -70,6 +89,8 @@ public class AuthService {
         );
 
         userRoleRepository.save(userRole);
+
+        verificationService.sendWelcomeCodes(savedUser);
 
         return new RegisterResponseDto(
                 savedUser.getId(),
@@ -111,6 +132,29 @@ public class AuthService {
             throw new BadCredentialsException("Invalid email or password");
         }
 
+        return tokensFor(user, refreshTokenService.issueNewLogin(user.getId()));
+    }
+
+    /** Exchanges a refresh token for a new access token and a new refresh token. */
+    @org.springframework.transaction.annotation.Transactional(noRollbackFor = {
+            rw.parkshare.backend.common.exception.ApiException.class,
+            org.springframework.security.core.AuthenticationException.class})
+    public LoginResponseDto refresh(String refreshToken) {
+        rw.parkshare.backend.auth.token.RefreshTokenService.Rotation rotation = refreshTokenService.rotate(refreshToken);
+        User user = userRepository.findById(rotation.userId())
+                .orElseThrow(() -> new BadCredentialsException("Account not found"));
+        if (!"ACTIVE".equalsIgnoreCase(user.getStatus())) {
+            refreshTokenService.revokeAllForUser(user.getId());
+            throw new BadCredentialsException("User account is not active");
+        }
+        return tokensFor(user, rotation.refreshToken());
+    }
+
+    public void logout(String refreshToken) {
+        refreshTokenService.logout(refreshToken);
+    }
+
+    private LoginResponseDto tokensFor(User user, String refreshToken) {
         List<String> roles = userRoleRepository
                 .findByUserId(user.getId())
                 .stream()
@@ -128,7 +172,7 @@ public class AuthService {
                 roles
         );
 
-        return new LoginResponseDto(
+        LoginResponseDto response = new LoginResponseDto(
                 token,
                 "Bearer",
                 user.getId(),
@@ -137,6 +181,10 @@ public class AuthService {
                 user.getLastName(),
                 roles
         );
+        response.setRefreshToken(refreshToken);
+        response.setExpiresIn(jwtService.accessTokenSeconds());
+        response.setRefreshExpiresIn(refreshTokenService.refreshTokenSeconds());
+        return response;
     }
 
     private void validateRegistrationRequest(RegisterRequestDto request) {
@@ -165,6 +213,16 @@ public class AuthService {
             throw new IllegalArgumentException(
                     "Password must contain at least 8 characters"
             );
+        }
+
+        if (!request.getPassword().matches(".*[A-Za-z].*") || !request.getPassword().matches(".*\\d.*")) {
+            throw new IllegalArgumentException(
+                    "Password must contain at least one letter and one number"
+            );
+        }
+
+        if (!request.getEmail().trim().matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            throw new IllegalArgumentException("Email address is not valid");
         }
     }
 }

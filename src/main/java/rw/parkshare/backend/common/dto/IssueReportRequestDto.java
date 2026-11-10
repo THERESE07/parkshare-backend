@@ -1,11 +1,17 @@
 package rw.parkshare.backend.common.dto;
 
+import jakarta.validation.constraints.*;
+
 public class IssueReportRequestDto {
 
+    @Pattern(regexp = "PARKING_UNAVAILABLE|WRONG_AVAILABILITY|PAYMENT_PROBLEM|RESERVATION_PROBLEM|QR_PROBLEM|CHECK_IN_PROBLEM|CHECK_OUT_PROBLEM|OVERCHARGED|SAFETY|OTHER", message = "must be one of PARKING_UNAVAILABLE, WRONG_AVAILABILITY, PAYMENT_PROBLEM, RESERVATION_PROBLEM, QR_PROBLEM, CHECK_IN_PROBLEM, CHECK_OUT_PROBLEM, OVERCHARGED, SAFETY, OTHER")
     private String issueType;
+    @Size(max = 200)
     private String title;
+    @Size(max = 5000)
     private String description;
     private String status;
+    @Pattern(regexp = "LOW|MEDIUM|HIGH|URGENT", message = "must be one of LOW, MEDIUM, HIGH, URGENT")
     private String priority;
     private String resolutionNotes;
 

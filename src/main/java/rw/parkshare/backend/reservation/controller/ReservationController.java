@@ -1,5 +1,9 @@
 package rw.parkshare.backend.reservation.controller;
 
+import rw.parkshare.backend.common.dto.PageResponse;
+
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,13 +27,17 @@ public class ReservationController {
         this.reservationService = reservationService;
     }
 
+    /**
+     * Books parking for the logged-in driver. userId is only honoured for
+     * admins booking on someone's behalf. Price and code are set by the server.
+     */
     @PostMapping
     public ResponseEntity<ReservationResponseDto> createReservation(
-            @RequestParam Long userId,
+            @RequestParam(required = false) Long userId,
             @RequestParam Long vehicleId,
             @RequestParam Long parkingLotId,
             @RequestParam(required = false) Long parkingSpaceId,
-            @RequestBody ReservationRequestDto request
+            @Valid @RequestBody ReservationRequestDto request
     ) {
         ReservationResponseDto createdReservation =
                 reservationService.createReservation(
@@ -66,20 +74,25 @@ public class ReservationController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ReservationResponseDto>>
-    getAllReservations() {
+    public ResponseEntity<PageResponse<ReservationResponseDto>>
+    getAllReservations(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
         return ResponseEntity.ok(
-                reservationService.getAllReservations()
+                reservationService.getAllReservations(page, size)
         );
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<ReservationResponseDto>>
+    public ResponseEntity<PageResponse<ReservationResponseDto>>
     getReservationsByUserId(
-            @PathVariable Long userId
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
     ) {
         return ResponseEntity.ok(
-                reservationService.getReservationsByUserId(userId)
+                reservationService.getReservationsByUserId(userId, page, size)
         );
     }
 
@@ -200,7 +213,7 @@ public class ReservationController {
     @PutMapping("/{id}")
     public ResponseEntity<ReservationResponseDto> updateReservation(
             @PathVariable Long id,
-            @RequestBody ReservationRequestDto request
+            @Valid @RequestBody ReservationRequestDto request
     ) {
         return ResponseEntity.ok(
                 reservationService.updateReservation(
@@ -225,12 +238,28 @@ public class ReservationController {
     }
 
     @PatchMapping("/{id}/cancel")
-    public ResponseEntity<ReservationResponseDto> cancelReservation(
+    public ResponseEntity<ReservationService.CancellationResult> cancelReservation(
             @PathVariable Long id
     ) {
         return ResponseEntity.ok(
                 reservationService.cancelReservation(id)
         );
+    }
+
+    @PatchMapping("/{id}/notes")
+    public ResponseEntity<ReservationResponseDto> updateNotes(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, String> body
+    ) {
+        return ResponseEntity.ok(reservationService.updateNotes(id, body.get("notes")));
+    }
+
+    /** QR token for the driver's app to render; scanned at the entrance. */
+    @GetMapping("/{id}/qr")
+    public ResponseEntity<rw.parkshare.backend.reservation.service.QrTokenService.CurrentQr> getQrCode(
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(reservationService.getQrCode(id));
     }
 
     @DeleteMapping("/{id}")

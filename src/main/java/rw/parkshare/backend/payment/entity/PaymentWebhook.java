@@ -1,6 +1,8 @@
 package rw.parkshare.backend.payment.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 
@@ -29,6 +31,7 @@ public class PaymentWebhook {
     @Column(name = "event_type")
     private String eventType;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private String payload;
 

@@ -87,17 +87,10 @@ public class OperatorVerificationService {
                 businessRegistrationNumber
         );
 
-        String verificationStatus =
-                request.getVerificationStatus();
-
-        if (verificationStatus == null
-                || verificationStatus.isBlank()) {
-            verificationStatus = "PENDING";
-        }
-
-        verification.setVerificationStatus(
-                verificationStatus
-        );
+        // Always starts PENDING: only an admin can verify (PATCH /{id}/review).
+        verification.setVerificationStatus("PENDING");
+        verification.setTin(request.getTin());
+        verification.setVatRegistered(Boolean.TRUE.equals(request.getVatRegistered()));
 
         verification.setNotes(
                 request.getNotes()
@@ -320,6 +313,14 @@ public class OperatorVerificationService {
             );
         }
 
+        if (request.getTin() != null) {
+            verification.setTin(request.getTin());
+        }
+
+        if (request.getVatRegistered() != null) {
+            verification.setVatRegistered(request.getVatRegistered());
+        }
+
         if (request.getVerificationStatus() != null
                 && !request.getVerificationStatus().isBlank()) {
             verification.setVerificationStatus(
@@ -388,6 +389,14 @@ public class OperatorVerificationService {
                 request.getVerificationStatus()
         );
 
+        // The admin confirms (or corrects) TIN and VAT status against the RRA certificate.
+        if (request.getTin() != null) {
+            verification.setTin(request.getTin());
+        }
+        if (request.getVatRegistered() != null) {
+            verification.setVatRegistered(request.getVatRegistered());
+        }
+
         verification.setReviewedBy(reviewer);
 
         verification.setReviewedAt(
@@ -440,7 +449,7 @@ public class OperatorVerificationService {
                 ? verification.getReviewedBy().getId()
                 : null;
 
-        return new OperatorVerificationResponseDto(
+        OperatorVerificationResponseDto dto = new OperatorVerificationResponseDto(
                 verification.getId(),
                 userId,
                 verification.getBusinessName(),
@@ -452,6 +461,9 @@ public class OperatorVerificationService {
                 verification.getRejectionReason(),
                 verification.getNotes()
         );
+        dto.setTin(verification.getTin());
+        dto.setVatRegistered(verification.isVatRegistered());
+        return dto;
     }
 
     private void validateDateRange(

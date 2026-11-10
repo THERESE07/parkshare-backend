@@ -6,16 +6,23 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
 public class JwtService {
 
-    private final JwtEncoder jwtEncoder;
+    public static final String ISSUER = "parkshare";
 
-    public JwtService(JwtEncoder jwtEncoder) {
+    private final JwtEncoder jwtEncoder;
+    private final rw.parkshare.backend.config.ParkShareProperties properties;
+
+    public JwtService(JwtEncoder jwtEncoder, rw.parkshare.backend.config.ParkShareProperties properties) {
         this.jwtEncoder = jwtEncoder;
+        this.properties = properties;
+    }
+
+    public long accessTokenSeconds() {
+        return properties.getSecurity().getAccessTokenMinutes() * 60L;
     }
 
     public String generateToken(
@@ -24,10 +31,10 @@ public class JwtService {
             List<String> roles
     ) {
         Instant issuedAt = Instant.now();
-        Instant expiresAt = issuedAt.plus(24, ChronoUnit.HOURS);
+        Instant expiresAt = issuedAt.plusSeconds(accessTokenSeconds());
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
-                .issuer("parkshare")
+                .issuer(ISSUER)
                 .subject(email)
                 .issuedAt(issuedAt)
                 .expiresAt(expiresAt)

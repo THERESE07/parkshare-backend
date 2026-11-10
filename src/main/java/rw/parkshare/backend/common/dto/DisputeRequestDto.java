@@ -1,12 +1,18 @@
 package rw.parkshare.backend.common.dto;
 
+import jakarta.validation.constraints.*;
+
 import java.math.BigDecimal;
 
 public class DisputeRequestDto {
 
+    @Pattern(regexp = "PAYMENT|REFUND|OVERCHARGE|RESERVATION|SERVICE|DAMAGE|OTHER", message = "must be one of PAYMENT, REFUND, OVERCHARGE, RESERVATION, SERVICE, DAMAGE, OTHER")
     private String disputeType;
+    @Size(max = 5000)
     private String description;
+    @PositiveOrZero
     private BigDecimal amountDisputed;
+    @Pattern(regexp = "RWF", message = "must be RWF")
     private String currency;
     private String status;
     private String resolution;

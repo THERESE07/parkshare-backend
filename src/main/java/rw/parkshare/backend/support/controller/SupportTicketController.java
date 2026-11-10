@@ -1,5 +1,7 @@
 package rw.parkshare.backend.support.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import rw.parkshare.backend.common.dto.SupportTicketRequestDto;
@@ -24,7 +26,7 @@ public class SupportTicketController {
     @PostMapping
     public ResponseEntity<SupportTicketResponseDto> createTicket(
             @RequestParam Long userId,
-            @RequestBody SupportTicketRequestDto request
+            @Valid @RequestBody SupportTicketRequestDto request
     ) {
         return ResponseEntity.ok(
                 supportTicketService.createTicket(userId, request)
@@ -210,7 +212,7 @@ public class SupportTicketController {
     @PutMapping("/{ticketId}")
     public ResponseEntity<SupportTicketResponseDto> updateTicket(
             @PathVariable Long ticketId,
-            @RequestBody SupportTicketRequestDto request
+            @Valid @RequestBody SupportTicketRequestDto request
     ) {
         return ResponseEntity.ok(
                 supportTicketService.updateTicket(

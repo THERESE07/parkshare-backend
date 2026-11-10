@@ -1,5 +1,7 @@
 package rw.parkshare.backend.reservation.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +27,7 @@ public class ReservationQrCodeController {
     @PostMapping("/reservation/{reservationId}")
     public ResponseEntity<ReservationQrCodeResponseDto> createQrCode(
             @PathVariable Long reservationId,
-            @RequestBody ReservationQrCodeRequestDto request
+            @Valid @RequestBody ReservationQrCodeRequestDto request
     ) {
         ReservationQrCodeResponseDto createdQrCode =
                 qrCodeService.createQrCode(

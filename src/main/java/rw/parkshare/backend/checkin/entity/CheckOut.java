@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import rw.parkshare.backend.reservation.entity.Reservation;
 import rw.parkshare.backend.user.entity.User;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -100,5 +101,27 @@ public class CheckOut {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    @Column(name = "overstay_minutes", nullable = false)
+    private Integer overstayMinutes = 0;
+
+    @Column(name = "overstay_amount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal overstayAmount = BigDecimal.ZERO;
+
+    public Integer getOverstayMinutes() {
+        return overstayMinutes;
+    }
+
+    public void setOverstayMinutes(Integer overstayMinutes) {
+        this.overstayMinutes = overstayMinutes;
+    }
+
+    public BigDecimal getOverstayAmount() {
+        return overstayAmount;
+    }
+
+    public void setOverstayAmount(BigDecimal overstayAmount) {
+        this.overstayAmount = overstayAmount;
     }
 }

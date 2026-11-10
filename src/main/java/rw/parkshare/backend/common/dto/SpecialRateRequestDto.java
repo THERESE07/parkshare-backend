@@ -1,14 +1,20 @@
 package rw.parkshare.backend.common.dto;
 
+import jakarta.validation.constraints.*;
+
 import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 
 public class SpecialRateRequestDto {
 
+    @Size(max = 100)
     private String name;
+    @Pattern(regexp = "PEAK|OFF_PEAK|WEEKEND|HOLIDAY|EVENT", message = "must be one of PEAK, OFF_PEAK, WEEKEND, HOLIDAY, EVENT")
     private String rateType;
+    @PositiveOrZero
     private BigDecimal amount;
+    @Pattern(regexp = "RWF", message = "must be RWF")
     private String currency;
     private LocalTime startTime;
     private LocalTime endTime;

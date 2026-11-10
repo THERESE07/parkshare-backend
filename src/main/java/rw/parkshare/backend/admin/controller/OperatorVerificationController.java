@@ -1,5 +1,7 @@
 package rw.parkshare.backend.admin.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,7 +30,7 @@ public class OperatorVerificationController {
     public ResponseEntity<OperatorVerificationResponseDto>
     createOperatorVerification(
             @RequestParam Long userId,
-            @RequestBody OperatorVerificationRequestDto request
+            @Valid @RequestBody OperatorVerificationRequestDto request
     ) {
         OperatorVerificationResponseDto created =
                 operatorVerificationService
@@ -172,7 +174,7 @@ public class OperatorVerificationController {
     public ResponseEntity<OperatorVerificationResponseDto>
     updateOperatorVerification(
             @PathVariable Long id,
-            @RequestBody OperatorVerificationRequestDto request
+            @Valid @RequestBody OperatorVerificationRequestDto request
     ) {
         return ResponseEntity.ok(
                 operatorVerificationService
@@ -188,7 +190,7 @@ public class OperatorVerificationController {
     reviewOperatorVerification(
             @PathVariable Long id,
             @RequestParam Long reviewerId,
-            @RequestBody OperatorVerificationRequestDto request
+            @Valid @RequestBody OperatorVerificationRequestDto request
     ) {
         return ResponseEntity.ok(
                 operatorVerificationService

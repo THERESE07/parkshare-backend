@@ -1,5 +1,7 @@
 package rw.parkshare.backend.admin.service;
 
+import rw.parkshare.backend.common.dto.PageResponse;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rw.parkshare.backend.admin.entity.AuditLog;
@@ -76,11 +78,11 @@ public class AuditLogService {
     }
 
     @Transactional(readOnly = true)
-    public List<AuditLogResponseDto> getAllAuditLogs() {
-        return auditLogRepository.findAll()
-                .stream()
-                .map(this::toResponseDto)
-                .collect(Collectors.toList());
+    public PageResponse<AuditLogResponseDto> getAllAuditLogs(int page, int size) {
+        return PageResponse.of(
+                auditLogRepository.findAll(PageResponse.request(page, size, "createdAt")),
+                this::toResponseDto
+        );
     }
 
     @Transactional(readOnly = true)

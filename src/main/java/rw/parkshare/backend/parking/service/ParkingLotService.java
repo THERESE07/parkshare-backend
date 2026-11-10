@@ -87,12 +87,9 @@ public class ParkingLotService {
             );
         }
 
-        if (request.getStatus() == null
-                || request.getStatus().isBlank()) {
-            parkingLot.setStatus("PENDING");
-        } else {
-            parkingLot.setStatus(request.getStatus());
-        }
+        // New lots always start PENDING; only an admin can activate them
+        // (PATCH /api/parking-lots/{id}/status) after verification.
+        parkingLot.setStatus("PENDING");
 
         OffsetDateTime now = OffsetDateTime.now();
         parkingLot.setCreatedAt(now);
@@ -358,7 +355,7 @@ public class ParkingLotService {
             operatorId = parkingLot.getOperator().getId();
         }
 
-        return new ParkingLotResponseDto(
+        ParkingLotResponseDto dto = new ParkingLotResponseDto(
                 parkingLot.getId(),
                 operatorId,
                 parkingLot.getName(),
@@ -373,5 +370,7 @@ public class ParkingLotService {
                 parkingLot.getCreatedAt(),
                 parkingLot.getUpdatedAt()
         );
+        dto.setDistrict(parkingLot.getDistrict());
+        return dto;
     }
 }

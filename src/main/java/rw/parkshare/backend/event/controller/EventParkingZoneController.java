@@ -1,5 +1,7 @@
 package rw.parkshare.backend.event.controller;
 
+import jakarta.validation.Valid;
+
 import rw.parkshare.backend.common.dto.EventParkingZoneRequestDto;
 import rw.parkshare.backend.common.dto.EventParkingZoneResponseDto;
 import rw.parkshare.backend.event.service.EventParkingZoneService;
@@ -26,7 +28,7 @@ public class EventParkingZoneController {
     public ResponseEntity<EventParkingZoneResponseDto> createEventParkingZone(
             @RequestParam Long eventId,
             @RequestParam Long parkingLotId,
-            @RequestBody EventParkingZoneRequestDto request
+            @Valid @RequestBody EventParkingZoneRequestDto request
     ) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 eventParkingZoneService.createEventParkingZone(
@@ -133,7 +135,7 @@ public class EventParkingZoneController {
     @PutMapping("/{id}")
     public ResponseEntity<EventParkingZoneResponseDto> updateEventParkingZone(
             @PathVariable Long id,
-            @RequestBody EventParkingZoneRequestDto request
+            @Valid @RequestBody EventParkingZoneRequestDto request
     ) {
         return ResponseEntity.ok(
                 eventParkingZoneService.updateEventParkingZone(

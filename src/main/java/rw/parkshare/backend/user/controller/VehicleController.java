@@ -1,5 +1,7 @@
 package rw.parkshare.backend.user.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +24,7 @@ public class VehicleController {
     @PostMapping("/user/{userId}")
     public ResponseEntity<VehicleResponseDto> createVehicle(
             @PathVariable Long userId,
-            @RequestBody VehicleRequestDto request
+            @Valid @RequestBody VehicleRequestDto request
     ) {
         VehicleResponseDto createdVehicle =
                 vehicleService.createVehicle(
@@ -69,7 +71,7 @@ public class VehicleController {
     @PutMapping("/{id}")
     public ResponseEntity<VehicleResponseDto> updateVehicle(
             @PathVariable Long id,
-            @RequestBody VehicleRequestDto request
+            @Valid @RequestBody VehicleRequestDto request
     ) {
         return ResponseEntity.ok(
                 vehicleService.updateVehicle(

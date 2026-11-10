@@ -146,4 +146,26 @@ public class ReservationResponseDto {
     public void setNotes(String notes) {
         this.notes = notes;
     }
+
+    /** VAT (18%) included in totalAmount. */
+    private BigDecimal vatAmount;
+
+    /** Unpaid reservations are released after this time. */
+    private OffsetDateTime paymentDueBy;
+
+    public BigDecimal getVatAmount() {
+        return vatAmount;
+    }
+
+    public void setVatAmount(BigDecimal vatAmount) {
+        this.vatAmount = vatAmount;
+    }
+
+    public OffsetDateTime getPaymentDueBy() {
+        return paymentDueBy;
+    }
+
+    public void setPaymentDueBy(OffsetDateTime paymentDueBy) {
+        this.paymentDueBy = paymentDueBy;
+    }
 }

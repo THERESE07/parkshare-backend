@@ -1,5 +1,7 @@
 package rw.parkshare.backend.checkin.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +28,7 @@ public class OccupancyRecordController {
     public ResponseEntity<OccupancyRecordResponseDto> createOccupancyRecord(
             @RequestParam Long parkingLotId,
             @RequestParam(required = false) Long parkingZoneId,
-            @RequestBody OccupancyRecordRequestDto request
+            @Valid @RequestBody OccupancyRecordRequestDto request
     ) {
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 occupancyRecordService.createOccupancyRecord(
@@ -170,7 +172,7 @@ public class OccupancyRecordController {
     @PutMapping("/{id}")
     public ResponseEntity<OccupancyRecordResponseDto> updateOccupancyRecord(
             @PathVariable Long id,
-            @RequestBody OccupancyRecordRequestDto request
+            @Valid @RequestBody OccupancyRecordRequestDto request
     ) {
         return ResponseEntity.ok(
                 occupancyRecordService.updateOccupancyRecord(

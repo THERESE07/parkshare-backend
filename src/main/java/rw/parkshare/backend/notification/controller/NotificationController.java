@@ -1,5 +1,9 @@
 package rw.parkshare.backend.notification.controller;
 
+import rw.parkshare.backend.common.dto.PageResponse;
+
+import jakarta.validation.Valid;
+
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +29,7 @@ public class NotificationController {
     @PostMapping
     public ResponseEntity<NotificationResponseDto> createNotification(
             @RequestParam Long userId,
-            @RequestBody NotificationRequestDto request
+            @Valid @RequestBody NotificationRequestDto request
     ) {
         return ResponseEntity.ok(
                 notificationService.createNotification(
@@ -45,12 +49,14 @@ public class NotificationController {
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<NotificationResponseDto>>
+    public ResponseEntity<PageResponse<NotificationResponseDto>>
     getNotificationsByUserId(
-            @PathVariable Long userId
+            @PathVariable Long userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
     ) {
         return ResponseEntity.ok(
-                notificationService.getNotificationsByUserId(userId)
+                notificationService.getNotificationsByUserId(userId, page, size)
         );
     }
 
@@ -239,7 +245,7 @@ public class NotificationController {
     @PutMapping("/{id}")
     public ResponseEntity<NotificationResponseDto> updateNotification(
             @PathVariable Long id,
-            @RequestBody NotificationRequestDto request
+            @Valid @RequestBody NotificationRequestDto request
     ) {
         return ResponseEntity.ok(
                 notificationService.updateNotification(

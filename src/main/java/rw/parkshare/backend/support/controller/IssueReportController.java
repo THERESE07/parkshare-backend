@@ -1,5 +1,7 @@
 package rw.parkshare.backend.support.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +28,7 @@ public class IssueReportController {
             @RequestParam Long userId,
             @RequestParam(required = false) Long parkingLotId,
             @RequestParam(required = false) Long reservationId,
-            @RequestBody IssueReportRequestDto request
+            @Valid @RequestBody IssueReportRequestDto request
     ) {
         IssueReportResponseDto createdIssueReport =
                 issueReportService.createIssueReport(
@@ -198,7 +200,7 @@ public class IssueReportController {
     @PutMapping("/{issueReportId}")
     public ResponseEntity<IssueReportResponseDto> updateIssueReport(
             @PathVariable Long issueReportId,
-            @RequestBody IssueReportRequestDto request
+            @Valid @RequestBody IssueReportRequestDto request
     ) {
         return ResponseEntity.ok(
                 issueReportService.updateIssueReport(

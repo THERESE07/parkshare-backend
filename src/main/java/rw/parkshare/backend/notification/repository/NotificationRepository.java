@@ -12,6 +12,9 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     List<Notification> findByUser_Id(Long userId);
 
+    org.springframework.data.domain.Page<Notification> findByUser_Id(
+            Long userId, org.springframework.data.domain.Pageable pageable);
+
     List<Notification> findByUser_IdAndStatus(Long userId, String status);
 
     List<Notification> findByType(String type);

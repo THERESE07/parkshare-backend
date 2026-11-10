@@ -19,13 +19,16 @@ public class PricingRuleService {
 
     private final PricingRuleRepository pricingRuleRepository;
     private final ParkingLotRepository parkingLotRepository;
+    private final rw.parkshare.backend.pricing.PricingService pricingService;
 
     public PricingRuleService(
             PricingRuleRepository pricingRuleRepository,
-            ParkingLotRepository parkingLotRepository
+            ParkingLotRepository parkingLotRepository,
+            rw.parkshare.backend.pricing.PricingService pricingService
     ) {
         this.pricingRuleRepository = pricingRuleRepository;
         this.parkingLotRepository = parkingLotRepository;
+        this.pricingService = pricingService;
     }
 
     public PricingRuleResponseDto createPricingRule(
@@ -360,6 +363,8 @@ public class PricingRuleService {
                     "Pricing amount cannot be negative."
             );
         }
+
+        pricingService.validateOperatorRate(request.getPricingType(), amount);
 
         if (request.getCurrency() == null
                 || request.getCurrency().isBlank()) {

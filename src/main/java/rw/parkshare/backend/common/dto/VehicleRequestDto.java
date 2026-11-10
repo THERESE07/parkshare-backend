@@ -1,11 +1,18 @@
 package rw.parkshare.backend.common.dto;
 
+import jakarta.validation.constraints.*;
+
 public class VehicleRequestDto {
 
+    @Pattern(regexp = "^[A-Za-z0-9 -]{2,30}$", message = "must be a valid plate number, e.g. RAD 123 A")
     private String plateNumber;
+    @Pattern(regexp = "CAR|MOTORCYCLE|TRUCK|BUS|OTHER", message = "must be one of CAR, MOTORCYCLE, TRUCK, BUS, OTHER")
     private String vehicleType;
+    @Size(max = 100)
     private String make;
+    @Size(max = 100)
     private String model;
+    @Size(max = 50)
     private String color;
     private Boolean isDefault;
     private Boolean isActive;

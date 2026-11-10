@@ -1,5 +1,7 @@
 package rw.parkshare.backend.event.controller;
 
+import jakarta.validation.Valid;
+
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +28,7 @@ public class EventController {
     @PostMapping
     public ResponseEntity<EventResponseDto> createEvent(
             @RequestParam Long organizerId,
-            @RequestBody EventRequestDto request
+            @Valid @RequestBody EventRequestDto request
     ) {
         EventResponseDto createdEvent =
                 eventService.createEvent(
@@ -180,7 +182,7 @@ public class EventController {
     @PutMapping("/{id}")
     public ResponseEntity<EventResponseDto> updateEvent(
             @PathVariable Long id,
-            @RequestBody EventRequestDto request
+            @Valid @RequestBody EventRequestDto request
     ) {
         return ResponseEntity.ok(
                 eventService.updateEvent(

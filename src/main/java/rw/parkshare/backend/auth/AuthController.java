@@ -30,4 +30,17 @@ public class AuthController {
     ) {
         return ResponseEntity.ok(authService.login(request));
     }
+
+    /** Body: {"refreshToken": "..."}. Returns the same shape as login, with a NEW refresh token. */
+    @PostMapping("/refresh")
+    public ResponseEntity<LoginResponseDto> refresh(@RequestBody java.util.Map<String, String> body) {
+        return ResponseEntity.ok(authService.refresh(body.get("refreshToken")));
+    }
+
+    /** Body: {"refreshToken": "..."}. Ends this login session. */
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestBody(required = false) java.util.Map<String, String> body) {
+        authService.logout(body == null ? null : body.get("refreshToken"));
+        return ResponseEntity.noContent().build();
+    }
 }

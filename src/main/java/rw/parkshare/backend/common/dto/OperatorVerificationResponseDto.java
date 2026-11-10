@@ -132,4 +132,23 @@ public class OperatorVerificationResponseDto {
     public void setNotes(String notes) {
         this.notes = notes;
     }
+
+    private String tin;
+    private boolean vatRegistered;
+
+    public String getTin() {
+        return tin;
+    }
+
+    public void setTin(String tin) {
+        this.tin = tin;
+    }
+
+    public boolean isVatRegistered() {
+        return vatRegistered;
+    }
+
+    public void setVatRegistered(boolean vatRegistered) {
+        this.vatRegistered = vatRegistered;
+    }
 }

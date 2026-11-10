@@ -1,8 +1,13 @@
 package rw.parkshare.backend.common.dto;
 
+import jakarta.validation.constraints.*;
+
 public class ReviewRequestDto {
 
+    @Min(1)
+    @Max(5)
     private Integer rating;
+    @Size(max = 2000)
     private String comment;
 
     public ReviewRequestDto() {

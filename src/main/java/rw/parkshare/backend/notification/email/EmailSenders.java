@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import rw.parkshare.backend.config.ParkShareProperties;
 
 /**
@@ -37,6 +38,12 @@ public class EmailSenders {
         JavaMailSender sender = mailSender.getIfAvailable();
         if (sender == null) {
             throw new IllegalStateException("Email provider is smtp but SPRING_MAIL_HOST is not set");
+        }
+        if (sender instanceof JavaMailSenderImpl impl) {
+            // JavaMail waits forever by default; never let a slow mail server hang our threads.
+            impl.getJavaMailProperties().putIfAbsent("mail.smtp.connectiontimeout", "10000");
+            impl.getJavaMailProperties().putIfAbsent("mail.smtp.timeout", "10000");
+            impl.getJavaMailProperties().putIfAbsent("mail.smtp.writetimeout", "10000");
         }
         String from = properties.getMessaging().getEmailFrom();
         return (to, subject, body) -> {

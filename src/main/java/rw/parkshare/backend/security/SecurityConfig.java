@@ -1,18 +1,5 @@
 package rw.parkshare.backend.security;
 
-
-
-import org.springframework.security.config.Customizer;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import org.springframework.http.HttpMethod;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-
-import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -74,9 +61,6 @@ public class SecurityConfig {
         }
 
         http
-                .cors(Customizer.withDefaults())
-                // Keep your existing CSRF and authorization configuration here
-
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -90,9 +74,14 @@ public class SecurityConfig {
                         // Payment providers call back without a JWT; the body is HMAC-signed.
                         .requestMatchers(HttpMethod.POST, "/api/payments/callback/**").permitAll()
 
+                        // ---------- Public discovery: browse without logging in ----------
+                        // (only approved lots are ever returned to anonymous visitors)
+                        .requestMatchers(HttpMethod.GET, "/api/parking-lots", "/api/parking-lots/*",
+                                "/api/parking-lots/status/*", "/api/parking-operating-hours/parking-lot/*",
+                                "/api/parking-features/parking-lot/*", "/api/pricing/quote").permitAll()
+
                         // ---------- Current user ----------
                         .requestMatchers("/api/me/**", "/api/me").authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/pricing/quote").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/pricing/operator-preview").hasAnyRole(OPERATOR, ADMIN)
 
                         // ---------- Administration ----------
@@ -210,7 +199,7 @@ public class SecurityConfig {
         config.setAllowedOrigins(Arrays.stream(properties.getSecurity().getAllowedOrigins().split(","))
                 .map(String::trim).filter(origin -> !origin.isEmpty()).toList());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);
@@ -241,33 +230,6 @@ public class SecurityConfig {
     @Bean
     public JwtEncoder jwtEncoder() {
         return NimbusJwtEncoder.withSecretKey(secretKey()).algorithm(MacAlgorithm.HS256).build();
-    }
-
-    @Bean
-    CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:5173",
-                "http://127.0.0.1:5173"
-        ));
-
-        configuration.setAllowedMethods(List.of(
-                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
-        ));
-
-        configuration.setAllowedHeaders(List.of(
-                "Authorization", "Content-Type", "Accept"
-        ));
-
-        configuration.setAllowCredentials(false);
-
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
-
-        source.registerCorsConfiguration("/**", configuration);
-
-        return source;
     }
 
     @Bean

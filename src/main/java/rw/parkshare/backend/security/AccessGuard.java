@@ -52,6 +52,13 @@ public class AccessGuard {
         return new CurrentUser(userId, jwtAuth.getToken().getSubject(), Set.copyOf(roles));
     }
 
+    /** The caller, or empty for anonymous visitors on public endpoints. */
+    public java.util.Optional<CurrentUser> currentIfPresent() {
+        return SecurityContextHolder.getContext().getAuthentication() instanceof JwtAuthenticationToken
+                ? java.util.Optional.of(current())
+                : java.util.Optional.empty();
+    }
+
     /** The caller must be this user, or an admin. */
     public void requireSelfOrAdmin(Long userId) {
         CurrentUser user = current();

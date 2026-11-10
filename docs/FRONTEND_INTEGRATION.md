@@ -43,7 +43,7 @@ VITE_API_URL=http://localhost:8080
 > `PARKSHARE_SECURITY_ALLOWEDORIGINS` (default `http://localhost:3000`,
 > `http://localhost:5173`). If your dev server uses another port, or when you
 > deploy, give the exact origin (e.g. `https://parkshare.rw`) to the backend owner.
-> Mobile apps are not affected by CORS.
+> `http://127.0.0.1:5173` is allowed too. Mobile apps are not affected by CORS.
 
 ---
 
@@ -268,6 +268,8 @@ GET /api/reservations/user/12?page=0&size=20
 ## 9. Driver flows
 
 ### Find parking
+- **No login needed to browse:** lots, opening hours, features and price quotes are public, so
+  visitors can look before signing up. Booking needs an account (and a verified email or phone).
 - All lots: `GET /api/parking-lots`. Drivers only ever receive approved (`ACTIVE`) lots;
   operators also see their own unapproved lots; admins see everything.
 - Each lot includes `district`, `city`, `address`, `latitude`, `longitude`, `contactPhone`.

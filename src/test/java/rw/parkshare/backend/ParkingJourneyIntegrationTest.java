@@ -619,6 +619,31 @@ class ParkingJourneyIntegrationTest {
                 .andExpect(jsonPath("$.district").value("Nyarugenge"));
         call(get("/api/parking-lots/" + pendingId), adminToken).andExpect(status().isOk());
         call(get("/api/parking-lots/" + activeId), driverToken).andExpect(jsonPath("$.district").value("Gasabo"));
+
+        // Visitors can browse without logging in, but only approved lots
+        String anonymousList = mvc.perform(get("/api/parking-lots")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat((java.util.List<String>) JsonPath.read(anonymousList, "$[*].status")).containsOnly("ACTIVE");
+        mvc.perform(get("/api/parking-lots/" + activeId)).andExpect(status().isOk());
+        mvc.perform(get("/api/parking-lots/" + pendingId)).andExpect(status().isNotFound());
+        OffsetDateTime start = OffsetDateTime.now().plusHours(2).truncatedTo(ChronoUnit.MINUTES);
+        mvc.perform(get("/api/pricing/quote").param("parkingLotId", activeId.toString())
+                        .param("startTime", start.toString()).param("endTime", start.plusHours(2).toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(800.0));
+        // ...but booking still needs an account
+        mvc.perform(post("/api/reservations").param("vehicleId", "1").param("parkingLotId", activeId.toString())
+                .contentType(MediaType.APPLICATION_JSON).content(window(start, start.plusHours(1))))
+                .andExpect(status().isUnauthorized());
+
+        // The Vite dev server may call the API from either localhost or 127.0.0.1
+        for (String origin : new String[]{"http://localhost:5173", "http://127.0.0.1:5173"}) {
+            mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options("/api/auth/login")
+                            .header("Origin", origin).header("Access-Control-Request-Method", "POST")
+                            .header("Access-Control-Request-Headers", "content-type,accept"))
+                    .andExpect(status().isOk())
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                            .header().string("Access-Control-Allow-Origin", origin));
+        }
     }
 
     @Test

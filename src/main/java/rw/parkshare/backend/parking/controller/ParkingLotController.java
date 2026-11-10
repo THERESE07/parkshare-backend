@@ -175,7 +175,8 @@ public class ParkingLotController {
         if ("ACTIVE".equals(lot.getStatus())) {
             return true;
         }
-        rw.parkshare.backend.security.CurrentUser me = guard.current();
-        return me.isAdmin() || me.id().equals(lot.getOperatorId());
+        return guard.currentIfPresent()
+                .map(me -> me.isAdmin() || me.id().equals(lot.getOperatorId()))
+                .orElse(false); // anonymous visitors only see approved lots
     }
 }
